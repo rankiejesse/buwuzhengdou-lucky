@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#68509b"><meta name="description" content="不务正豆·幸运抽奖，给今天加一点好运。离线可用的店内抽奖小助手。">
+  <link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./style.css"><title>不务正豆 · 幸运抽奖</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#draw"><span class="brand-mark" aria-hidden="true">豆</span><span>不务正豆<small>A LITTLE LUCK, A LOT OF JOY</small></span></a>
+      <div class="nav-label">好运营业中 <span>✦</span></div>
+      <nav aria-label="主导航">
+        <button data-page="draw" class="nav-item active"><span class="nav-icon" aria-hidden="true">✧</span>幸运抽奖<span class="nav-dot" aria-hidden="true">●</span></button>
+        <button data-page="records" class="nav-item"><span class="nav-icon" aria-hidden="true">▤</span>今日中奖查询</button>
+        <button data-page="inventory" class="nav-item"><span class="nav-icon" aria-hidden="true">▦</span>库存看板</button>
+        <div class="nav-divider"></div><div class="nav-label owner-label">老板工作台</div>
+        <button data-page="settings" class="nav-item"><span class="nav-icon" aria-hidden="true">⚙</span>奖池设置</button>
+        <button data-page="data" class="nav-item"><span class="nav-icon" aria-hidden="true">▣</span>数据管理</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="mini-bean" aria-hidden="true">◕‿◕</div><p>小小一颗豆<br>满满一口好运</p><span class="local-pill">● 数据保存在本机</span><small>LUCKY BEAN CLUB · 01</small></div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar"><div><span class="pixel-star">✦</span><span id="top-title">幸运抽奖</span><span class="top-subtitle"> / LUCKY DRAW</span></div><div class="top-tools"><span id="connection" class="status">● 在线</span><span id="today-label"></span><button id="install" class="small-button" hidden>安装到桌面 ↗</button></div></header>
+      <div id="test-banner" class="test-banner" hidden>测试模式 · 使用独立奖池和库存，不影响正式数据 <button id="exit-test">退出测试</button></div>
+      <main id="content" aria-live="polite"><div class="loading">正在打开好运小店…</div></main>
+      <footer><span>不务正豆 · 把快乐留在这一刻</span><span id="offline-status">离线资源准备中…</span></footer>
+    </div>
+  </div>
+  <dialog id="dialog"><div id="dialog-content"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script type="module" src="./app.js"></script>
+</body></html>

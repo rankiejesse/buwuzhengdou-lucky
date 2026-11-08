@@ -1,0 +1,7 @@
+node_modules/
+test-results/
+playwright-report/
+artifacts/
+*.zip
+backups/
+*-完整备份-*.json
