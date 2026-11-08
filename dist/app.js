@@ -2,6 +2,7 @@ import {PRIZES,dateKey,counts,availability,pool,backup,validateBackup} from './e
 import {repository} from './storage.js';
 const $=s=>document.querySelector(s), content=$('#content'), dialog=$('#dialog');
 const browserMode=location.pathname.endsWith('/browser.html');
+const nativeApp=!!window.BeanAndroid;
 let mode=sessionStorage.getItem('bean-mode')==='sandbox'?'sandbox':'live';
 let state, page='draw', busy=false, animating=false, draft=null, draftRevision=0, dirty=false, selectedDate=dateKey(), followToday=true, category='', forcedPrize='', toastTimer, installPrompt, modalResolve;
 const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('bean-updates'):null;
@@ -125,17 +126,19 @@ async function toggleTest(){
 }
 function renderData(){
   const disabled=mode==='sandbox'?'disabled':'';
-  content.innerHTML=heading('把好运，好好保存','数据只保存在当前设备、当前浏览器中。迁移设备前，请先导出备份。')+`
+  content.innerHTML=heading('把好运，好好保存',nativeApp?'数据保存在本应用中。迁移设备或卸载前，请先导出备份。':'数据只保存在当前设备、当前浏览器中。迁移设备前，请先导出备份。')+`
     ${mode==='sandbox'?'<div class="notice">测试模式下不可导入、清空或导出正式数据。请先退出测试模式。</div>':''}
     <div class="data-grid"><section class="card data-card"><div class="data-icon">↗ ▣</div><h2>导出完整备份</h2><p>包含奖项设置、中奖记录、库存变化流水与设置变更记录，保存为 JSON 文件。</p><button id="export-data" class="primary" ${disabled}>导出 JSON 备份 ↓</button></section>
     <section class="card data-card"><div class="data-icon">▣ ↙</div><h2>导入已有备份</h2><p>检查文件内容后，整份替换本机正式数据。不会自动合并；请先备份当前数据。</p><button id="import-data" class="secondary" ${disabled}>选择 JSON 文件 ↑</button><input id="import-file" type="file" accept=".json,application/json" hidden></section>
     <section class="card data-card"><div class="data-icon">↺</div><h2>恢复默认奖池</h2><p>恢复十种默认概率、库存限制设为不限。保留历史中奖记录、库存流水与累计领取数量。</p><button id="data-defaults" class="secondary" ${disabled}>恢复默认奖池</button></section>
     <section class="card data-card"><div class="data-icon">⌫</div><h2>清空历史中奖记录</h2><p>仅清空中奖查询记录。库存流水继续保留，已消耗的库存不会返还。此操作需要两次确认。</p><button id="clear-records" class="danger" ${disabled}>清空历史记录</button></section></div>
     <div class="notice purple">最后更新时间：${stamp(state.updatedAt)}<br>记录 ${state.records.length} 条 · 库存流水 ${state.ledger.length} 条 · 设置变更 ${state.audit.length} 条<br>本机数据不自动跨设备同步。导入旧备份会回滚库存，请勿将同一备份用于多台设备同时发奖。</div>
-    <section class="card"><div class="card-heading"><h2>设备与离线使用</h2><button id="persist-storage" class="small-button">申请持久存储</button></div><p class="help" id="storage-state">正在检查浏览器存储…</p><p class="help">安卓 Chrome：首次联网打开，等待右下角显示“离线已就绪”，再从浏览器菜单选择“添加到主屏幕 / 安装应用”。清除浏览器站点数据、卸载或设备损坏可能丢失本机数据，请定期导出备份。</p></section>
+    <section class="card"><div class="card-heading"><h2>设备与离线使用</h2><button id="persist-storage" class="small-button" ${nativeApp?'hidden':''}>申请持久存储</button></div><p class="help" id="storage-state">正在检查本机存储…</p><p class="help">${nativeApp?'安卓应用已内置所有运行资源，首次打开即可离线使用。导出时选择系统文件保存位置；可导入原Chrome网页导出的JSON备份。网页与本应用的数据不会自动同步，迁移后请停止在旧网页同时发奖。卸载或清除应用数据会删除本机记录，请定期备份。':'安卓 Chrome：首次联网打开，等待右下角显示“离线已就绪”，再从浏览器菜单选择“添加到主屏幕 / 安装应用”。清除浏览器站点数据、卸载或设备损坏可能丢失本机数据，请定期导出备份。'}</p></section>
     <section class="card mode-card"><h2>最近库存与设置变化</h2>${[...state.ledger.map(r=>({at:r.at,text:`领取 ${PRIZES.find(p=>p.id===r.prizeId).name} · 库存 -1`})),...state.audit.map(r=>({at:r.at,text:({settings:'修改概率或库存配置',defaults:'恢复默认奖池',clearRecords:'清空中奖查询记录（库存未返还）',import:'导入并替换备份'})[r.type]}))].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)).slice(0,20).map(r=>`<div class="audit-line">${stamp(r.at)} &nbsp; <b>${esc(r.text)}</b></div>`).join('')||'<p class="help">暂无变化，完整流水随 JSON 备份导出。</p>'}</section>`;
   $('#export-data').onclick=()=>safe(async()=>{
-    await reload();const blob=new Blob([JSON.stringify(backup(state),null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`不务正豆-完整备份-${dateKey()}-${Date.now()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);toast('备份已生成，请确认文件已保存到下载目录');
+    await reload();const json=JSON.stringify(backup(state),null,2),name=`不务正豆-完整备份-${dateKey()}-${Date.now()}.json`;
+    if(nativeApp){window.BeanAndroid.saveBackup(json,name);toast('请选择备份保存位置');return;}
+    const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);toast('备份已生成，请确认文件已保存到下载目录');
   });
   $('#import-data').onclick=()=>$('#import-file').click();
   $('#import-file').onchange=e=>safe(async()=>{
@@ -152,7 +155,7 @@ function renderData(){
       if(await ask('最后确认：此操作无法撤销','请输入“清空”，确认删除全部日期的正式中奖查询记录。',{danger:true,label:'清空全部历史记录',typed:true})){await act({type:'clearRecords'});render();toast('中奖查询记录已清空，库存消耗已保留');}
     }
   });
-  const storageCheck=async()=>{if($('#storage-state'))$('#storage-state').textContent=await navigator.storage?.persisted?.()?'当前已获得持久存储许可。仍建议定期备份。':'当前由浏览器管理存储空间。可申请持久存储，减少空间不足时被自动清理的风险。';};storageCheck();
+  const storageCheck=async()=>{if($('#storage-state'))$('#storage-state').textContent=nativeApp?'使用本应用的私有持久存储；普通关闭、重启与同签名覆盖更新保留数据。':await navigator.storage?.persisted?.()?'当前已获得持久存储许可。仍建议定期备份。':'当前由浏览器管理存储空间。可申请持久存储，减少空间不足时被自动清理的风险。';};storageCheck();
   $('#persist-storage').onclick=()=>safe(async()=>{const ok=await navigator.storage?.persist?.();toast(ok?'持久存储已启用':'浏览器暂未授予许可，安装到桌面并持续使用后可重试');await storageCheck();});
 }
 async function navigate(next){
@@ -165,9 +168,9 @@ document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>navigate(b.dat
 $('.brand').onclick=e=>{e.preventDefault();navigate('draw');};
 $('#exit-test').onclick=()=>safe(toggleTest);
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();if(browserMode)return;installPrompt=e;$('#install').hidden=false;});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();if(browserMode||nativeApp)return;installPrompt=e;$('#install').hidden=false;});
 $('#install').onclick=async()=>{if(installPrompt){await installPrompt.prompt();installPrompt=null;$('#install').hidden=true;}};
-if(document.documentElement.requestFullscreen&&document.fullscreenEnabled){
+if(!nativeApp&&document.documentElement.requestFullscreen&&document.fullscreenEnabled){
   $('#fullscreen').hidden=false;
   $('#fullscreen').onclick=async()=>{
     try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen({navigationUI:'hide'});}
@@ -175,7 +178,7 @@ if(document.documentElement.requestFullscreen&&document.fullscreenEnabled){
   };
   document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'退出全屏 ⛶':'店内全屏 ⛶');
 }
-const connection=()=>{$('#connection').textContent=navigator.onLine?'● 在线':'● 离线';};window.addEventListener('online',connection);window.addEventListener('offline',connection);connection();
+const connection=()=>{$('#connection').textContent=nativeApp?'● 本地应用':navigator.onLine?'● 在线':'● 离线';};window.addEventListener('online',connection);window.addEventListener('offline',connection);connection();
 channel?.addEventListener('message',async e=>{if(e.data.mode!==mode||busy||animating)return;await reload();if(!dirty){if(page==='settings')draft=null;render();if(dialog.open&&!modalResolve){if(state.session?.status==='pending')showResult();else closeModal();}}else toast('其他页面的数据已变化；保存时将检查设置版本');});
 let lastDay=dateKey();
 setInterval(async()=>{if(busy||animating||!state)return;const day=dateKey();if(day!==lastDay){lastDay=day;await reload();if(!dirty&&page!=='settings'&&page!=='data')render();}},1000);
@@ -183,7 +186,8 @@ document.addEventListener('visibilitychange',async()=>{if(document.visibilitySta
 async function initialize(){
   try{await reload();render();window.__beanStarted=true;window.dispatchEvent(new Event('bean-ready'));if(state.session?.status==='pending')showResult();}
   catch(e){window.__beanStarted=true;window.dispatchEvent(new Event('bean-ready'));content.innerHTML=`<section class="error-card"><h1>本机数据暂时无法打开</h1><p>${esc(e.message)}</p><p>请检查是否使用隐私模式、设备存储是否已满。为避免丢失数据，应用不会自动清空或覆盖数据库。</p><button class="secondary" onclick="location.reload()">重试打开</button><a class="secondary" href="./repair.html">启动帮助</a></section>`;}
-  if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;$('#offline-status').textContent='● 离线已就绪 · 本机保存';}catch{$('#offline-status').textContent='离线缓存未就绪 · 请联网重试';}}
+  if(nativeApp){$('#offline-status').textContent='● 内置离线版 · 数据保存在应用内';}
+  else if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;$('#offline-status').textContent='● 离线已就绪 · 本机保存';}catch{$('#offline-status').textContent='离线缓存未就绪 · 请联网重试';}}
   else $('#offline-status').textContent='此浏览器不支持离线安装';
 }
 initialize();

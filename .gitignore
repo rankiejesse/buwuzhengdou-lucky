@@ -5,3 +5,12 @@ artifacts/
 *.zip
 backups/
 *-完整备份-*.json
+android/.gradle/
+android/**/build/
+android/local.properties
+android/app/src/main/assets/www/
+*.jks
+*.keystore
+*.apk
+*.p12
+**/signing.properties
