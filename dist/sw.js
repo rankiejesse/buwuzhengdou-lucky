@@ -1,5 +1,5 @@
-const CACHE='bean-shell-v1.0.1';
-const FILES=['./index.html','./repair.html','./style.css','./app.js','./engine.js','./storage.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
+const CACHE='bean-shell-v1.0.2';
+const FILES=['./index.html','./browser.html','./repair.html','./style.css','./app.js','./engine.js','./storage.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   await cache.addAll(FILES.map(path=>new Request(new URL(path,self.location),{cache:'reload'})));
@@ -23,7 +23,8 @@ self.addEventListener('fetch',event=>{
       const isRepair=url.pathname===new URL('./repair.html',scope).pathname;
       if(isRepair){try{const response=await network(event.request);if(response.ok)return response;}catch{}}
       // Launch aliases, queries and missing directory entries share the cached document.
-      const shell=await cache.match(isRepair?'./repair.html':'./index.html',{ignoreSearch:true,ignoreVary:true});
+      const isBrowser=url.pathname===new URL('./browser.html',scope).pathname;
+      const shell=await cache.match(isRepair?'./repair.html':isBrowser?'./browser.html':'./index.html',{ignoreSearch:true,ignoreVary:true});
       if(shell)return shell;
       try{return await network(event.request);}catch{return new Response('<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width"><title>启动需要联网</title><body style="padding:32px;background:#f7f5ef;color:#63477c;font:18px sans-serif"><h1>请联网完成应用更新</h1><p>启动文件暂不可用，本机奖池与领取记录未被清除。</p><a href="./repair.html">打开启动帮助</a></body></html>',{status:503,headers:{'Content-Type':'text/html; charset=utf-8'}});}
     }

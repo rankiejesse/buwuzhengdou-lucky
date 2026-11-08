@@ -1,6 +1,8 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#68509b"><title>不务正豆 · 启动帮助</title><style>body{margin:0;padding:32px 20px;background:#f7f5ef;color:#59416c;font:16px/1.8 system-ui,sans-serif}main{max-width:540px;margin:25px auto;padding:25px;background:#fffaf0;border:2px solid #d8c5e7;border-radius:18px}h1{font-size:24px}button,a{display:inline-block;font:inherit;padding:12px 18px;margin:10px 5px 10px 0;border-radius:8px;border:1px solid #806194;background:#785695;color:#fff8e8;text-decoration:none}button:disabled{opacity:.6}small{color:#9780a6}#status{white-space:pre-line}</style></head><body><main><small>不务正豆 · v1.0.1</small><h1>安装版停在“豆”图标？</h1><p>请先联网，关闭桌面安装版和其他抽奖页面，再点击下方按钮更新启动文件。</p><p><strong>此操作只更新程序缓存，不会清空奖池、库存或领取记录。</strong>请不要清除 Chrome 的站点数据，也无需卸载应用。</p><button id="update">安全更新应用</button><a href="./index.html?source=repair">打开抽奖页面</a><p id="status" role="status">准备就绪。更新完成后，再从桌面图标打开。</p><small>若仍停在系统图标，请在应用设置中强行停止 Chrome 后重开，或更新 Chrome，再将平板型号和 Chrome 版本告诉维护人员。</small></main><script>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#68509b"><title>不务正豆 · 启动帮助</title><style>body{margin:0;padding:32px 20px;background:#f7f5ef;color:#59416c;font:16px/1.8 system-ui,sans-serif}main{max-width:540px;margin:25px auto;padding:25px;background:#fffaf0;border:2px solid #d8c5e7;border-radius:18px}h1{font-size:24px}button,a{display:inline-block;font:inherit;padding:12px 18px;margin:10px 5px 10px 0;border-radius:8px;border:1px solid #806194;background:#785695;color:#fff8e8;text-decoration:none}button:disabled{opacity:.6}small{color:#9780a6}#status{white-space:pre-line}</style></head><body><main><small>不务正豆 · v1.0.2</small><h1>安装版停在“豆”图标？</h1><p>请先联网，关闭桌面安装版和其他抽奖页面，再点击下方按钮更新启动文件。</p><p><strong>此操作只更新程序缓存，不会清空奖池、库存或领取记录。</strong>请不要清除 Chrome 的站点数据，也无需卸载应用。</p><button id="update">安全更新应用</button><a href="./index.html?source=repair">打开抽奖页面</a><p id="status" role="status">准备就绪。更新完成后，再从桌面图标打开。</p><small>若仍停在系统图标，请在应用设置中强行停止 Chrome 后重开，或更新 Chrome，再将平板型号和 Chrome 版本告诉维护人员。</small></main><script>
 (function(){
  var button=document.getElementById('update'),status=document.getElementById('status');
+ var compatible=new URLSearchParams(location.search).get('mode')==='browser';
+ if(compatible){document.title='不务正豆 · 浏览器兼容入口';document.querySelector('h1').textContent='使用浏览器兼容版';button.textContent='启用兼容版';status.textContent='用同一个 Chrome 打开。兼容版沿用原奖池和库存，支持离线及店内全屏。';}
  button.onclick=async function(){
   button.disabled=true;status.textContent='正在下载更新，请保持联网…';
   try{
@@ -20,8 +22,8 @@
      reg.waiting.postMessage({type:'ACTIVATE_BEAN_UPDATE'});
     });
    }
-   status.textContent='更新完成！数据已保留。即将打开抽奖页面，之后可关闭窗口并从桌面重开。';
-   setTimeout(function(){location.replace('./index.html?source=updated');},1200);
+   status.textContent=compatible?'兼容版已就绪，数据已保留。进入后可点击右上角“店内全屏”。':'更新完成！数据已保留。即将打开抽奖页面，之后可关闭窗口并从桌面重开。';
+   setTimeout(function(){location.replace(compatible?'./browser.html':'./index.html?source=updated');},1200);
   }catch(e){status.textContent=e.message||'更新失败，请联网后重试。';button.disabled=false;}
  };
 })();

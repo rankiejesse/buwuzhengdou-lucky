@@ -1,6 +1,7 @@
 import {PRIZES,dateKey,counts,availability,pool,backup,validateBackup} from './engine.js';
 import {repository} from './storage.js';
 const $=s=>document.querySelector(s), content=$('#content'), dialog=$('#dialog');
+const browserMode=location.pathname.endsWith('/browser.html');
 let mode=sessionStorage.getItem('bean-mode')==='sandbox'?'sandbox':'live';
 let state, page='draw', busy=false, animating=false, draft=null, draftRevision=0, dirty=false, selectedDate=dateKey(), followToday=true, category='', forcedPrize='', toastTimer, installPrompt, modalResolve;
 const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('bean-updates'):null;
@@ -164,8 +165,16 @@ document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>navigate(b.dat
 $('.brand').onclick=e=>{e.preventDefault();navigate('draw');};
 $('#exit-test').onclick=()=>safe(toggleTest);
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('#install').hidden=false;});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();if(browserMode)return;installPrompt=e;$('#install').hidden=false;});
 $('#install').onclick=async()=>{if(installPrompt){await installPrompt.prompt();installPrompt=null;$('#install').hidden=true;}};
+if(document.documentElement.requestFullscreen&&document.fullscreenEnabled){
+  $('#fullscreen').hidden=false;
+  $('#fullscreen').onclick=async()=>{
+    try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen({navigationUI:'hide'});}
+    catch{toast('浏览器暂未允许全屏，可继续正常抽奖');}
+  };
+  document.addEventListener('fullscreenchange',()=>$('#fullscreen').textContent=document.fullscreenElement?'退出全屏 ⛶':'店内全屏 ⛶');
+}
 const connection=()=>{$('#connection').textContent=navigator.onLine?'● 在线':'● 离线';};window.addEventListener('online',connection);window.addEventListener('offline',connection);connection();
 channel?.addEventListener('message',async e=>{if(e.data.mode!==mode||busy||animating)return;await reload();if(!dirty){if(page==='settings')draft=null;render();if(dialog.open&&!modalResolve){if(state.session?.status==='pending')showResult();else closeModal();}}else toast('其他页面的数据已变化；保存时将检查设置版本');});
 let lastDay=dateKey();

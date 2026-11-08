@@ -4,6 +4,12 @@
 
 ## 启动与安装
 
+**v1.0.2 浏览器兼容入口**：如果网页正常、Chrome 安装版仍卡在系统图标，可在同一个 Chrome 打开 [启用浏览器兼容版](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)，点击“启用兼容版”。进入后点击右上角“店内全屏”，可隐藏浏览器界面；退出全屏可使用页内按钮或系统返回键。兼容版与原版同源、共用正式库存与记录，无需导入或迁移。普通关闭和离线使用保持原有规则。
+
+兼容入口地址是 `browser.html`，不声明安装用 manifest。可尝试从 Chrome 菜单“添加到主屏幕 / 安装并创建快捷方式”中选择 **创建快捷方式**。不要选择再次安装应用；不同 Chrome/系统版本菜单文字可能不同。快捷方式与原 Chrome 安装壳的启动行为需要在实际平板上验证。已有安装版不必卸载；如仍有问题，先在 Chrome 标签页打开兼容入口使用。
+
+Google 官方的 [安卓网站快捷方式说明](https://support.google.com/chrome/answer/15085120?co=GENIE.Platform%3DAndroid&hl=zh-Hans) 区分了“创建快捷方式”与“安装应用”；带 Chrome 徽标的快捷方式在 Chrome 中打开。
+
 **v1.0.1 安装版启动修复**：如果桌面安装版停留在“豆”启动图标，联网用同一个 Chrome 打开 [启动帮助](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html)，关闭桌面安装版，点击“安全更新应用”。成功后关闭页面，再从桌面图标重开。无需卸载，也不要清除 Chrome 站点数据。此更新保留已有奖池、库存、中奖记录及待领取状态。
 
 启动页现在将样式和程序打包在单个 HTML 中；即使附属缓存缺失也可启动和抽奖。页面、程序或本机存储加载失败时会显示启动帮助入口，而不是无限等待。真实设备上系统启动图标仍停留时，需要进一步核对平板型号、Android 与 Chrome 版本。
@@ -102,6 +108,7 @@ dist/style.css       响应式像素风布局
 dist/sw.js           无外部依赖的离线应用壳缓存
 dist/manifest.webmanifest  PWA 安装配置
 dist/repair.html      保留本机数据的安全更新入口
+dist/browser.html     普通浏览器入口，与正式安装版共用本机数据
 src/index.html       启动页模板（修改后执行 npm run build）
 src/boot.js          启动超时提示与旧版浏览器 API 兼容
 scripts/build.mjs    将样式与程序打包为自包含启动页

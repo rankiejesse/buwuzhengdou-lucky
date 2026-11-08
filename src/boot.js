@@ -10,7 +10,7 @@
   var timer=setTimeout(function(){
     if(window.__beanStarted)return;
     var box=document.getElementById('content');if(!box)return;
-    box.innerHTML='<section class="error-card"><h1>启动还未完成</h1><p>本次尚未开始抽奖。本机数据不会被自动清空。</p><p>请先联网打开启动帮助，安全更新程序后重开。</p><a class="secondary" href="./repair.html">打开启动帮助</a><p class="help">程序版本 v1.0.1 · 若仍无法打开，请更新 Chrome 浏览器。</p></section>';
+    box.innerHTML='<section class="error-card"><h1>启动还未完成</h1><p>本次尚未开始抽奖。本机数据不会被自动清空。</p><p>请先联网打开启动帮助，安全更新程序后重开。</p><a class="secondary" href="./repair.html">打开启动帮助</a><p class="help">程序版本 v1.0.2 · 若仍无法打开，请更新 Chrome 浏览器。</p></section>';
   },8000);
   window.addEventListener('bean-ready',function(){clearTimeout(timer);});
 })();

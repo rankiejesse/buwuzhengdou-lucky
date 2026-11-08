@@ -37,6 +37,29 @@ test('safe repair upgrades the original worker and preserves settings, records, 
  await page.goto('/repair.html');await page.locator('#update').click();await expect(page.locator('#next-customer')).toBeVisible({timeout:35000});
  const after=await page.evaluate(async()=>(await import('./storage.js')).repository.read('live'));
  for(const key of ['prizes','records','ledger','session'])expect(after[key]).toEqual(before[key]);
- expect(await page.evaluate(()=>caches.keys())).toContain('bean-shell-v1.0.1');expect(await page.evaluate(()=>caches.keys())).not.toContain('bean-shell-v1.0.0');
+ expect(await page.evaluate(()=>caches.keys())).toContain('bean-shell-v1.0.2');expect(await page.evaluate(()=>caches.keys())).not.toContain('bean-shell-v1.0.0');
  await context.setOffline(true);await page.goto('/?old-installed-launch');await expect(page.locator('#next-customer')).toBeVisible();
+});
+
+test('browser-only entry shares stock and records, remains browser-only offline, supports full screen',async({page,context})=>{
+ await page.goto('/');await expect(page.locator('#start-draw')).toBeVisible();
+ await page.locator('#start-draw').click();await page.locator('#claim').click();await expect(page.locator('#next-customer')).toBeVisible();
+ const before=await page.evaluate(async()=>(await import('./storage.js')).repository.read('live'));
+ await expect(page.locator('#offline-status')).toContainText('离线已就绪');
+ await page.goto('/browser.html');await expect(page.locator('#next-customer')).toBeVisible();await expect(page.locator('link[rel="manifest"]')).toHaveCount(0);await expect(page).toHaveTitle('不务正豆·浏览器兼容版');
+ const after=await page.evaluate(async()=>(await import('./storage.js')).repository.read('live'));
+ for(const key of ['prizes','records','ledger','session'])expect(after[key]).toEqual(before[key]);
+ await page.locator('#fullscreen').click();await expect.poll(()=>page.evaluate(()=>!!document.fullscreenElement)).toBe(true);await page.locator('#fullscreen').click();await expect.poll(()=>page.evaluate(()=>!!document.fullscreenElement)).toBe(false);
+ await context.setOffline(true);await page.reload();await expect(page.locator('#next-customer')).toBeVisible();await expect(page.locator('link[rel="manifest"]')).toHaveCount(0);await expect(page.locator('#install')).toBeHidden();
+});
+
+test('compatibility enable link upgrades a legacy worker and routes to browser mode preserving pending draw',async({page,context})=>{
+ const legacy=await readFile(new URL('../fixtures/sw-v1.js',import.meta.url),'utf8');
+ await context.route('**/sw.js',route=>route.fulfill({contentType:'text/javascript',body:legacy}));
+ await page.goto('/');await expect(page.locator('#offline-status')).toContainText('离线已就绪');await page.locator('#start-draw').click();await expect(page.locator('#claim')).toBeVisible();
+ const ticket=await page.evaluate(async()=>(await (await import('./storage.js')).repository.read('live')).session);
+ await context.unroute('**/sw.js');await page.goto('/repair.html?mode=browser');await page.getByRole('button',{name:'启用兼容版'}).click();
+ await expect(page).toHaveURL(/browser\.html$/,{timeout:35000});await expect(page.locator('#claim')).toBeVisible();
+ const restored=await page.evaluate(async()=>(await (await import('./storage.js')).repository.read('live')).session);expect(restored).toEqual(ticket);
+ await page.locator('#claim').click();await expect(page.locator('#next-customer')).toBeVisible();
 });
