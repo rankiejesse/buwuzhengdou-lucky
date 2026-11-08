@@ -31,7 +31,7 @@ function render(){
   $('#test-banner').hidden=mode!=='sandbox';
   document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   $('#top-title').textContent=names[page][0];$('.top-subtitle').textContent=' / '+names[page][1];
-  $('#today-label').textContent=dateKey().replaceAll('-',' . ');
+  $('#today-label').textContent=dateKey().split('-').join(' . ');
   ({draw:renderDraw,records:renderRecords,inventory:renderInventory,settings:renderSettings,data:renderData})[page]();
 }
 function renderDraw(){
@@ -172,8 +172,8 @@ let lastDay=dateKey();
 setInterval(async()=>{if(busy||animating||!state)return;const day=dateKey();if(day!==lastDay){lastDay=day;await reload();if(!dirty&&page!=='settings'&&page!=='data')render();}},1000);
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&state&&!busy&&!dirty&&!animating){await reload();if(page==='settings')draft=null;render();}});
 async function initialize(){
-  try{await reload();render();if(state.session?.status==='pending')showResult();}
-  catch(e){content.innerHTML=`<section class="error-card"><h1>本机数据暂时无法打开</h1><p>${esc(e.message)}</p><p>请检查是否使用隐私模式、设备存储是否已满。为避免丢失数据，应用不会自动清空或覆盖数据库。</p><button class="secondary" onclick="location.reload()">重试打开</button></section>`;}
+  try{await reload();render();window.__beanStarted=true;window.dispatchEvent(new Event('bean-ready'));if(state.session?.status==='pending')showResult();}
+  catch(e){window.__beanStarted=true;window.dispatchEvent(new Event('bean-ready'));content.innerHTML=`<section class="error-card"><h1>本机数据暂时无法打开</h1><p>${esc(e.message)}</p><p>请检查是否使用隐私模式、设备存储是否已满。为避免丢失数据，应用不会自动清空或覆盖数据库。</p><button class="secondary" onclick="location.reload()">重试打开</button><a class="secondary" href="./repair.html">启动帮助</a></section>`;}
   if('serviceWorker' in navigator){try{await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;$('#offline-status').textContent='● 离线已就绪 · 本机保存';}catch{$('#offline-status').textContent='离线缓存未就绪 · 请联网重试';}}
   else $('#offline-status').textContent='此浏览器不支持离线安装';
 }

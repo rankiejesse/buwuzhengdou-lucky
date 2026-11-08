@@ -4,6 +4,10 @@
 
 ## 启动与安装
 
+**v1.0.1 安装版启动修复**：如果桌面安装版停留在“豆”启动图标，联网用同一个 Chrome 打开 [启动帮助](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html)，关闭桌面安装版，点击“安全更新应用”。成功后关闭页面，再从桌面图标重开。无需卸载，也不要清除 Chrome 站点数据。此更新保留已有奖池、库存、中奖记录及待领取状态。
+
+启动页现在将样式和程序打包在单个 HTML 中；即使附属缓存缺失也可启动和抽奖。页面、程序或本机存储加载失败时会显示启动帮助入口，而不是无限等待。真实设备上系统启动图标仍停留时，需要进一步核对平板型号、Android 与 Chrome 版本。
+
 - 线上：[不务正豆·幸运抽奖](https://rankiejesse.github.io/buwuzhengdou-lucky/)，打开后等待页脚出现 **离线已就绪**。
 - 安卓 Chrome：菜单 → **添加到主屏幕 / 安装应用**，按提示安装。若没有安装项，请更新 Chrome，并确认使用 HTTPS。
 - 首次打开需要网络，缓存完成后可断网抽奖。未曾打开过的新设备不能第一次就离线运行。
@@ -86,7 +90,7 @@ GitHub 官方配置文档：https://docs.github.com/en/pages/getting-started-wit
 
 网页无登录要求。Pages 只托管公共程序文件，**本机中奖记录和库存不会上传到 GitHub**。源码中不要加入备份 JSON。GitHub Pages 的首次访问速度取决于店内网络；完成缓存后离线运行不受影响。
 
-更新时务必修改 `dist/sw.js` 中的缓存版本，例如从 `bean-shell-v1.0.0` 改为 `bean-shell-v1.0.1`，并发布完整一组文件。新版本缓存完成后会等待旧页面关闭，再激活，避免抽奖过程中切换代码。更新前请备份，关闭所有已打开的应用窗口后联网重开。更新不清除 IndexedDB 数据。
+更新时务必修改 `dist/sw.js` 中的缓存版本，例如从 `bean-shell-v1.0.1` 改为 `bean-shell-v1.0.2`，执行 `npm run build`，并发布完整一组文件。新版本缓存完成后会等待旧页面关闭，再激活，避免抽奖过程中切换代码；启动帮助页提供老板主动激活的安全更新按钮。更新前请备份，关闭所有已打开的应用窗口后联网重开。更新不清除 IndexedDB 数据。
 
 ## 技术结构与验证
 
@@ -97,6 +101,10 @@ dist/app.js          五个功能页面与交互
 dist/style.css       响应式像素风布局
 dist/sw.js           无外部依赖的离线应用壳缓存
 dist/manifest.webmanifest  PWA 安装配置
+dist/repair.html      保留本机数据的安全更新入口
+src/index.html       启动页模板（修改后执行 npm run build）
+src/boot.js          启动超时提示与旧版浏览器 API 兼容
+scripts/build.mjs    将样式与程序打包为自包含启动页
 tests/engine.test.mjs      库存与抽奖规则测试
 tests/browser/            浏览器交互、离线、并发和持久化验证
 ```
@@ -107,6 +115,7 @@ tests/browser/            浏览器交互、离线、并发和持久化验证
 
 ```powershell
 npm test
+npm run build
 npx playwright install chromium
 npm run test:browser
 ```

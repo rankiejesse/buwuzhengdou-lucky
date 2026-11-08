@@ -92,7 +92,7 @@ test('offline reload and new page preserve app and allow real claim, scoped PWA 
  await page.evaluate(()=>navigator.serviceWorker.ready);await page.reload();await context.setOffline(true);await page.reload();await expect(page.locator('#start-draw')).toBeVisible();
  await draw(page);await page.locator('#claim').click();await expect(page.locator('#next-customer')).toBeVisible();expect((await raw(page)).records).toHaveLength(1);
  const offline=await context.newPage();await offline.goto('/');await expect(offline.locator('#next-customer')).toBeVisible();await expect(offline.locator('#connection')).toContainText('离线');
- const manifest=await offline.evaluate(async()=>await (await fetch('./manifest.webmanifest')).json());expect(manifest.display).toBe('standalone');expect(manifest.start_url).toBe('./');
+ const manifest=await offline.evaluate(async()=>await (await fetch('./manifest.webmanifest')).json());expect(manifest.display).toBe('standalone');expect(manifest.id).toBe('./');expect(manifest.start_url).toBe('./index.html?source=installed');
  await context.setOffline(false);
 });
 

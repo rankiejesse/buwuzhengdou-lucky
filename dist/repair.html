@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#68509b"><title>不务正豆 · 启动帮助</title><style>body{margin:0;padding:32px 20px;background:#f7f5ef;color:#59416c;font:16px/1.8 system-ui,sans-serif}main{max-width:540px;margin:25px auto;padding:25px;background:#fffaf0;border:2px solid #d8c5e7;border-radius:18px}h1{font-size:24px}button,a{display:inline-block;font:inherit;padding:12px 18px;margin:10px 5px 10px 0;border-radius:8px;border:1px solid #806194;background:#785695;color:#fff8e8;text-decoration:none}button:disabled{opacity:.6}small{color:#9780a6}#status{white-space:pre-line}</style></head><body><main><small>不务正豆 · v1.0.1</small><h1>安装版停在“豆”图标？</h1><p>请先联网，关闭桌面安装版和其他抽奖页面，再点击下方按钮更新启动文件。</p><p><strong>此操作只更新程序缓存，不会清空奖池、库存或领取记录。</strong>请不要清除 Chrome 的站点数据，也无需卸载应用。</p><button id="update">安全更新应用</button><a href="./index.html?source=repair">打开抽奖页面</a><p id="status" role="status">准备就绪。更新完成后，再从桌面图标打开。</p><small>若仍停在系统图标，请在应用设置中强行停止 Chrome 后重开，或更新 Chrome，再将平板型号和 Chrome 版本告诉维护人员。</small></main><script>
+(function(){
+ var button=document.getElementById('update'),status=document.getElementById('status');
+ button.onclick=async function(){
+  button.disabled=true;status.textContent='正在下载更新，请保持联网…';
+  try{
+   if(!('serviceWorker' in navigator))throw Error('此浏览器不支持应用离线更新，请升级 Chrome。');
+   var reg=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});
+   await new Promise(function(resolve,reject){
+    var timer=setTimeout(function(){reject(Error('更新等待超时，请检查网络后重试。'));},25000);
+    function watch(worker){if(!worker)return;function check(){if(worker.state==='installed'||worker.state==='activated'){clearTimeout(timer);resolve();}else if(worker.state==='redundant'){clearTimeout(timer);reject(Error('更新文件未下载完整，请检查网络后重试。'));}}worker.addEventListener('statechange',check);check();}
+    if(reg.waiting){clearTimeout(timer);resolve();return;}
+    if(reg.installing)watch(reg.installing);
+    else{reg.addEventListener('updatefound',function(){watch(reg.installing);},{once:true});reg.update().then(function(){if(!reg.installing&&!reg.waiting){clearTimeout(timer);resolve();}},function(e){clearTimeout(timer);reject(e);});}
+   });
+   if(reg.waiting){
+    await new Promise(function(resolve,reject){
+     var timeout=setTimeout(function(){reject(Error('新版本等待启用，请关闭其他应用窗口后重试。'));},10000);
+     navigator.serviceWorker.addEventListener('controllerchange',function(){clearTimeout(timeout);resolve();},{once:true});
+     reg.waiting.postMessage({type:'ACTIVATE_BEAN_UPDATE'});
+    });
+   }
+   status.textContent='更新完成！数据已保留。即将打开抽奖页面，之后可关闭窗口并从桌面重开。';
+   setTimeout(function(){location.replace('./index.html?source=updated');},1200);
+  }catch(e){status.textContent=e.message||'更新失败，请联网后重试。';button.disabled=false;}
+ };
+})();
+</script></body></html>

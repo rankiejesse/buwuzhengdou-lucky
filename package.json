@@ -1,5 +1,20 @@
 {
-  "name": "buwuzhengdou-lucky", "version": "1.0.0", "private": true, "type": "module",
-  "scripts": {"start": "node scripts/serve.mjs", "test": "node --test tests/engine.test.mjs", "test:browser": "playwright test", "icons": "node scripts/icons.mjs"},
-  "devDependencies": {"@playwright/test": "^1.56.0", "pngjs": "^7.0.0"}
+  "name": "buwuzhengdou-lucky",
+  "version": "1.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/engine.test.mjs",
+    "test:browser": "playwright test",
+    "icons": "node scripts/icons.mjs",
+    "build": "node scripts/build.mjs",
+    "prestart": "npm run build",
+    "pretest:browser": "npm run build"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "esbuild": "^0.28.2",
+    "pngjs": "^7.0.0"
+  }
 }
