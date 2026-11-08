@@ -2,7 +2,9 @@ import {test,expect,chromium,devices} from '@playwright/test';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-async function ready(page){await page.goto('/');await expect(page.getByRole('button',{name:'开始抽奖'})).toBeVisible();}
+async function ready(page){await page.goto('/');await expect(page.getByRole('button',{name:'开始抽奖'})).toBeVisible();await page.evaluate(async()=>{const {security}=await import('./storage.js');if(!(await security.info()).configured)await security.setup('2468',[{question:'测试暗号',answer:'豆'}]);});}
+async function ownerPassword(page){await expect(page.locator('#owner-password')).toBeVisible();await page.locator('#owner-password').fill('2468');await page.locator('#owner-submit').click();await expect(page.locator('#owner-form')).not.toBeVisible();}
+async function unlock(page){await page.locator('#unlock-settings').click();await ownerPassword(page);await expect(page.getByLabel('9折概率',{exact:true})).toBeEnabled();}
 async function nav(page,name){const b=page.getByRole('navigation').getByRole('button',{name,exact:true});await b.click();await expect(b).toHaveClass(/active/);}
 async function confirm(page,name='确认'){await page.locator('dialog').getByRole('button',{name,exact:true}).click();}
 async function raw(page,key='live'){return page.evaluate(async key=>(await import('./storage.js')).repository.read(key),key);}
@@ -40,44 +42,45 @@ test('abandon has no stock or record, persists lock after reload, supervised nex
 });
 
 test('settings decimals, sum validation, zero inventory and preserving defaults/history',async({page})=>{
- await ready(page);await nav(page,'奖池设置');await expect(page.locator('tbody tr')).toHaveCount(10);
+ await ready(page);await nav(page,'奖池设置');await expect(page.locator('tbody tr')).toHaveCount(10);await unlock(page);
  await page.getByLabel('9折概率',{exact:true}).fill('19.25');await expect(page.locator('#save-settings')).toBeDisabled();await expect(page.locator('#prob-sum')).toContainText('99.25%');
  await page.getByLabel('8折概率',{exact:true}).fill('10.75');await expect(page.locator('#save-settings')).toBeEnabled();
- for(const p of ['9折','8折','7折','6折','5折','减3元','减2元','减1元','时段卡一张','全天卡一张'])await page.getByLabel(p+'总库存',{exact:true}).fill('0');
+ for(const p of ['9折','8折','7折','6折','5折','减3元','减2元','减1元','时段卡一张','全天卡一张'])await page.getByLabel(p+'周库存',{exact:true}).fill('0');
  await page.locator('#save-settings').click();await confirm(page,'确认保存');await expect(page.getByRole('status')).toContainText('保存成功');
  await page.reload();expect((await raw(page)).prizes[0].probability).toBe(19.25);
  await expect(page.locator('#start-draw')).toBeDisabled();await expect(page.locator('#start-draw')).toContainText('奖池暂时休息');
- await nav(page,'奖池设置');await page.locator('#restore-defaults').click();await confirm(page,'恢复默认');await expect(page.locator('#prob-sum')).toContainText('100%');expect((await raw(page)).prizes[0].probability).toBe(20);
+ await nav(page,'奖池设置');await page.locator('#restore-defaults').click();await confirm(page,'恢复默认');await ownerPassword(page);await expect(page.locator('#prob-sum')).toContainText('100%');expect((await raw(page)).prizes[0].probability).toBe(20);
 });
 
 test('sandbox forced ten prizes and depleted stock are isolated from live',async({page})=>{
  await ready(page);await nav(page,'奖池设置');await page.locator('#toggle-test').click();await confirm(page,'进入测试');await expect(page.locator('#test-banner')).toBeVisible();
- await page.getByLabel('9折总库存',{exact:true}).fill('1');await page.locator('#save-settings').click();await confirm(page,'确认保存');await expect(page.getByRole('status')).toContainText('保存成功');
+ await unlock(page);
+ await page.getByLabel('9折周库存',{exact:true}).fill('1');await page.locator('#save-settings').click();await confirm(page,'确认保存');await expect(page.getByRole('status')).toContainText('保存成功');
  await nav(page,'幸运抽奖');
  for(const [id,name] of [['p09','9折'],['p08','8折'],['p07','7折'],['p06','6折'],['p05','5折'],['m03','减3元'],['m02','减2元'],['m01','减1元'],['slot','时段卡一张'],['day','全天卡一张']]){
    await page.locator('#force-prize').selectOption(id);await draw(page);await expect(page.locator('.dialog-prize')).toHaveText(name);await page.locator('#claim').click();await expect(page.locator('#next-customer')).toBeVisible();await next(page);
  }
  await page.locator('#force-prize').selectOption('p09');await page.locator('#start-draw').click();await expect(page.getByRole('status')).toContainText('已暂停');
  expect((await raw(page,'sandbox')).records).toHaveLength(10);expect((await raw(page,'live')).records).toHaveLength(0);expect((await raw(page,'live')).ledger).toHaveLength(0);
- await page.locator('#exit-test').click();await confirm(page,'返回正式');await expect(page.locator('#test-banner')).toBeHidden();expect((await raw(page)).prizes[0].total).toBeNull();
+ await page.locator('#exit-test').click();await confirm(page,'返回正式');await expect(page.locator('#test-banner')).toBeHidden();expect((await raw(page)).prizes[0].weekly).toBeNull();
 });
 
-test('JSON export/import checks and two-stage clear preserve inventory ledger',async({page})=>{
+test('JSON export/import uses owner password and one-confirmation history clear preserves ledger',async({page})=>{
  await ready(page);await draw(page);await page.locator('#claim').click();await expect(page.locator('#next-customer')).toBeVisible();await nav(page,'数据管理');
  const downloading=page.waitForEvent('download');await page.locator('#export-data').click();const download=await downloading;const downloadPath=await download.path();
  const saved=await raw(page);expect(saved.records).toHaveLength(1);
- await page.locator('#clear-records').click();await confirm(page,'继续');await expect(page.locator('#ok-modal')).toBeDisabled();await page.locator('#confirm-text').fill('清空');await confirm(page,'清空全部历史记录');
+ await page.locator('#clear-records').click();await confirm(page,'确认清空');
  await expect.poll(async()=>(await raw(page)).records.length).toBe(0);expect((await raw(page)).ledger).toHaveLength(1);
  await page.locator('#import-file').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{"format":"bad"}')});await expect(page.getByRole('status')).toContainText('备份');expect((await raw(page)).records).toHaveLength(0);
- await page.locator('#import-file').setInputFiles(downloadPath);await confirm(page,'确认替换数据');await expect.poll(async()=>(await raw(page)).records.length).toBe(1);expect((await raw(page)).ledger).toHaveLength(1);expect((await raw(page)).session).toBeNull();
+ await page.locator('#import-file').setInputFiles(downloadPath);await confirm(page,'确认替换数据');await ownerPassword(page);await expect.poll(async()=>(await raw(page)).records.length).toBe(1);expect((await raw(page)).ledger).toHaveLength(1);expect((await raw(page)).session).toBeNull();
 });
 
 test('records sort ascending, category filter, history and midnight rollover',async({page})=>{
  await ready(page);await seed(page,async()=>{
-   const {repository}=await import('./storage.js');const {fresh,command}=await import('./engine.js');let s=fresh();
+   const {repository,security}=await import('./storage.js');const {fresh,command}=await import('./engine.js');let s=fresh();
    for(const [at,r] of [['2026-11-08T04:00:00Z',.1],['2026-11-08T01:00:00Z',.8],['2026-11-07T06:00:00Z',.995]]){
      s=command(s,{type:'draw'},Date.parse(at),()=>r).state;s=command(s,{type:'claim',id:s.session.id},Date.parse(at)).state;s=command(s,{type:'next'},Date.parse(at)).state;
-   }await repository.replace('live',{format:'buwuzhengdou-backup',version:1,state:s});
+   }await repository.replace('live',{format:'buwuzhengdou-backup',version:2,state:s},await security.authorize('2468'));
  });
  await page.clock.install({time:new Date('2026-11-08T08:00:00Z')});await nav(page,'今日中奖查询');await expect(page.locator('tbody tr')).toHaveCount(2);
  await expect(page.locator('tbody tr').first()).toContainText('09:00:00');await expect(page.locator('tbody tr').last()).toContainText('12:00:00');
@@ -97,9 +100,9 @@ test('offline reload and new page preserve app and allow real claim, scoped PWA 
 });
 
 test('concurrent settings modification rejected instead of silent overwrite',async({page,context})=>{
- await ready(page);await nav(page,'奖池设置');await page.getByLabel('9折总库存',{exact:true}).fill('5');
- const other=await context.newPage();await other.goto('/');await nav(other,'奖池设置');await other.getByLabel('9折总库存',{exact:true}).fill('10');await other.locator('#save-settings').click();await confirm(other,'确认保存');
- await expect(other.getByRole('status')).toContainText('保存成功');await page.locator('#save-settings').click();await confirm(page,'确认保存');await expect(page.getByRole('status')).toContainText('另一页面已修改');expect((await raw(page)).prizes[0].total).toBe(10);
+ await ready(page);await nav(page,'奖池设置');await unlock(page);await page.getByLabel('9折周库存',{exact:true}).fill('5');
+ const other=await context.newPage();await other.goto('/');await nav(other,'奖池设置');await unlock(other);await other.getByLabel('9折周库存',{exact:true}).fill('10');await other.locator('#save-settings').click();await confirm(other,'确认保存');
+ await expect(other.getByRole('status')).toContainText('保存成功');await page.locator('#save-settings').click();await confirm(page,'确认保存');await expect(page.getByRole('status')).toContainText('另一页面已修改');expect((await raw(page)).prizes[0].weekly).toBe(10);
 });
 
 test('Android touch emulation: responsive navigation, draw, claim and result',async({browser})=>{

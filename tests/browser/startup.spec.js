@@ -32,12 +32,12 @@ test('safe repair upgrades the original worker and preserves settings, records, 
  await context.route('**/sw.js',route=>route.fulfill({contentType:'text/javascript',body:legacy}));
  await page.goto('/');await expect(page.locator('#offline-status')).toContainText('离线已就绪');
  await page.locator('#start-draw').click();await page.locator('#claim').click();await expect(page.locator('#next-customer')).toBeVisible();
- const before=await page.evaluate(async()=>{const {repository}=await import('./storage.js');const s=await repository.read('live');s.prizes[0].total=7;await repository.execute('live',{type:'settings',expectedRevision:s.settingsRevision,prizes:s.prizes});return repository.read('live');});
+ const before=await page.evaluate(async()=>{const {repository,security}=await import('./storage.js');await security.setup('2468',[{question:'测试暗号',answer:'豆'}]);const s=await repository.read('live');s.prizes[0].weekly=7;await repository.execute('live',{type:'settings',expectedRevision:s.settingsRevision,prizes:s.prizes,authorization:await security.authorize('2468')});return repository.read('live');});
  await context.unroute('**/sw.js');
  await page.goto('/repair.html');await page.locator('#update').click();await expect(page.locator('#next-customer')).toBeVisible({timeout:35000});
  const after=await page.evaluate(async()=>(await import('./storage.js')).repository.read('live'));
  for(const key of ['prizes','records','ledger','session'])expect(after[key]).toEqual(before[key]);
- expect(await page.evaluate(()=>caches.keys())).toContain('bean-shell-v1.0.2');expect(await page.evaluate(()=>caches.keys())).not.toContain('bean-shell-v1.0.0');
+ expect(await page.evaluate(()=>caches.keys())).toContain('bean-shell-v1.2.0');expect(await page.evaluate(()=>caches.keys())).not.toContain('bean-shell-v1.0.0');
  await context.setOffline(true);await page.goto('/?old-installed-launch');await expect(page.locator('#next-customer')).toBeVisible();
 });
 

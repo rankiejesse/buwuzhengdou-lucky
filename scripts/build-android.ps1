@@ -21,7 +21,7 @@ try {
     Copy-Item -LiteralPath 'android/app/src' -Destination (Join-Path $beanBuild 'app') -Recurse -Force
     $beanSdk = $env:ANDROID_HOME
     if (-not $beanSdk) { $beanSdk = Join-Path $env:LOCALAPPDATA 'Android/Sdk' }
-    $beanSdkPath = $beanSdk.Replace('\','/')
+    $beanSdkPath = $beanSdk.Replace([char]92,[char]47)
     Set-Content -LiteralPath (Join-Path $beanBuild 'local.properties') -Value "sdk.dir=$beanSdkPath" -Encoding ascii
     $beanTasks = @('assembleRelease')
     if ($IncludeTests) { $beanTasks += @('assembleDebug','assembleDebugAndroidTest') }

@@ -24,7 +24,7 @@ public class OfflineAppTest {
         device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(a->activity=a);
         waitJS("window.__beanStarted === true");
-        async("const r=await import('./storage.js');const e=await import('./engine.js');await r.transact('live',()=>({state:e.fresh()}));await r.repository.resetSandbox();sessionStorage.setItem('bean-mode','live');return true;");
+        async("const r=await import('./storage.js');const e=await import('./engine.js');await r.transact('live',()=>({state:e.fresh()}));await r.repository.resetSandbox();const db=await r.openStore();await new Promise((resolve,reject)=>{const tx=db.transaction('states','readwrite');tx.objectStore('states').delete('__owner_security');tx.oncomplete=resolve;tx.onabort=reject;});await r.security.setup('2468',[{question:'测试问题',answer:'豆'}]);sessionStorage.setItem('bean-mode','live');return true;");
         reload();
     }
     @After public void close(){if(scenario!=null)scenario.close();}
@@ -38,7 +38,8 @@ public class OfflineAppTest {
     void waitJS(String script) throws Exception {
         long deadline=SystemClock.elapsedRealtime()+20000;
         while(SystemClock.elapsedRealtime()<deadline){if(Boolean.TRUE.equals(eval(script)))return;SystemClock.sleep(100);}
-        fail("Timed out waiting for "+script);
+        device.executeShellCommand("screencap -p /sdcard/Download/bean-test-failure.png");
+        fail("Timed out waiting for "+script+"; layout="+eval("({height:innerHeight,visualHeight:visualViewport.height,active:document.activeElement?.id,dialog:document.querySelector('dialog').getBoundingClientRect().toJSON()})"));
     }
     Object async(String body) throws Exception {
         body=body.replace("import('./storage.js')","import('https://appassets.androidplatform.net/assets/www/storage.js')").replace("import('./engine.js')","import('https://appassets.androidplatform.net/assets/www/engine.js')");
@@ -52,7 +53,11 @@ public class OfflineAppTest {
     }
     void tap(String selector) throws Exception {
         String quoted=JSONObject.quote(selector);waitJS("!!document.querySelector("+quoted+")");
-        eval("document.querySelector("+quoted+").scrollIntoView({block:'center'})");SystemClock.sleep(150);
+        // Mimic dismissing the soft keyboard before tapping non-input controls in long dialogs.
+        eval("if(document.activeElement?.matches('input,textarea'))document.activeElement.blur()");
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(()->((android.view.inputmethod.InputMethodManager)activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(activity.webView.getWindowToken(),0));
+        SystemClock.sleep(300);
+        eval("document.querySelector("+quoted+").scrollIntoView({block:'center'})");SystemClock.sleep(350);
         JSONObject rect=(JSONObject)eval("(()=>{let r=document.querySelector("+quoted+").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,w:innerWidth};})()");
         int[] coords=new int[2];int[] width=new int[1];InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{activity.webView.getLocationOnScreen(coords);width[0]=activity.webView.getWidth();});
         double scale=width[0]/rect.getDouble("w");assertTrue(device.click(coords[0]+(int)(rect.getDouble("x")*scale),coords[1]+(int)(rect.getDouble("y")*scale)));
@@ -64,7 +69,7 @@ public class OfflineAppTest {
         PackageInfo info=activity.getPackageManager().getPackageInfo(activity.getPackageName(),android.content.pm.PackageManager.GET_PERMISSIONS);
         assertFalse(info.requestedPermissions!=null&&Arrays.asList(info.requestedPermissions).contains("android.permission.INTERNET"));
         assertEquals("object",eval("typeof BeanAndroid"));assertTrue(String.valueOf(eval("document.querySelector('#offline-status').textContent")).contains("内置离线"));
-        async("const r=(await import('./storage.js')).repository;const s=await r.read('live');for(const p of s.prizes){p.probability=p.id==='p09'?100:0;}s.prizes[0].total=1;s.prizes[0].daily=1;s.prizes[0].monthly=1;await r.execute('live',{type:'settings',prizes:s.prizes,expectedRevision:s.settingsRevision});return true;");reload();
+        async("const {repository:r,security}=await import('./storage.js');const s=await r.read('live');for(const p of s.prizes){p.probability=p.id==='p09'?100:0;}s.prizes[0].weekly=1;s.prizes[0].daily=1;s.prizes[0].monthly=1;await r.execute('live',{type:'settings',prizes:s.prizes,expectedRevision:s.settingsRevision,authorization:await security.authorize('2468')});return true;");reload();
         claim();JSONObject s=state();assertEquals(1,s.getJSONArray("records").length());assertEquals(1,s.getJSONArray("ledger").length());
         scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");assertEquals(s.getJSONArray("records").toString(),state().getJSONArray("records").toString());
         tap("#next-customer");tap("#ok-modal");waitJS("!!document.querySelector('#start-draw')");assertEquals(Boolean.TRUE,eval("document.querySelector('#start-draw').disabled"));
@@ -87,7 +92,25 @@ public class OfflineAppTest {
         String saved=device.executeShellCommand("cat /sdcard/Download/"+filename);JSONObject snapshot=new JSONObject(saved);assertEquals(1,snapshot.getJSONObject("state").getJSONArray("records").length());
         async("await (await import('./storage.js')).repository.execute('live',{type:'clearRecords'});return true;");reload();dataPage();tap("#import-data");
         UiObject2 file=device.wait(Until.findObject(By.text(filename)),10000);assertNotNull("Exported backup in Android picker",file);file.click();
-        waitJS("!!document.querySelector('#ok-modal')");tap("#ok-modal");waitJS("document.querySelector('#toast').textContent.includes('导入成功')");
+        waitJS("!!document.querySelector('#ok-modal')");tap("#ok-modal");waitJS("!!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='2468'");tap("#owner-submit");waitJS("document.querySelector('#toast').textContent.includes('导入成功')");
         assertEquals(1,state().getJSONArray("records").length());assertEquals(1,state().getJSONArray("ledger").length());
+    }
+
+    @Test public void ownerPasswordsTemporaryStockRecoveryAndOneConfirmationClear() throws Exception {
+        tap("[data-page=settings]");waitJS("!!document.querySelector('#unlock-settings')");
+        assertEquals(Boolean.TRUE,eval("document.querySelector('[data-field=weekly]').disabled"));
+        tap("#unlock-settings");waitJS("!!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='wrong'");tap("#owner-submit");waitJS("document.querySelector('#owner-error').textContent.includes('不正确')");tap("#owner-cancel");
+        tap("#unlock-settings");waitJS("document.querySelector('dialog').open && !!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='2468'");tap("#owner-submit");waitJS("!document.querySelector('[data-field=weekly]').disabled");
+        eval("(()=>{const e=document.querySelector('[data-id=p09][data-field=weekly]');e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}));})()");
+        tap("#save-settings");tap("#ok-modal");waitJS("document.querySelector('[data-field=weekly]').disabled");assertEquals(3,state().getJSONArray("prizes").getJSONObject(0).getInt("weekly"));
+        tap("#add-topup");waitJS("!!document.querySelector('#topup-password')");eval("document.querySelector('#topup-quantity').value='2';document.querySelector('#topup-password').value='2468'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");assertEquals(1,state().getJSONArray("topups").length());
+        tap("#change-questions");waitJS("!!document.querySelector('#old-password')");eval("document.querySelector('#old-password').value='2468';document.querySelector('.question-text').value='自定义第一题';document.querySelector('.question-answer').value='甲'");tap("#add-question");
+        waitJS("document.querySelectorAll('.question-text').length===2");eval("document.querySelectorAll('.question-text')[1].value='自定义第二题';document.querySelectorAll('.question-answer')[1].value='Lucky Bean'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        tap("#reset-password");waitJS("!!document.querySelector('#reset-answer')");eval("document.querySelector('#reset-question').selectedIndex=1;document.querySelector('#reset-answer').value='  LUCKY BEAN  ';document.querySelector('#new-password').value='8642';document.querySelector('#repeat-password').value='8642'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");
+        assertEquals(Boolean.TRUE,async("return !!await (await import('./storage.js')).security.authorize('8642');"));
+        tap("[data-page=settings]");waitJS("!!document.querySelector('#clear-all-data')");tap("#clear-all-data");tap("#ok-modal");waitJS("document.querySelector('#toast').textContent.includes('已清除')");
+        assertEquals(0,state().getJSONArray("records").length());assertEquals(0,state().getJSONArray("ledger").length());assertEquals(0,state().getJSONArray("topups").length());assertEquals(3,state().getJSONArray("prizes").getJSONObject(0).getInt("weekly"));
+        assertEquals(Boolean.TRUE,async("return !!await (await import('./storage.js')).security.authorize('8642');"));
     }
 }

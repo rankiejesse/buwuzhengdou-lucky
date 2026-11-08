@@ -9,6 +9,6 @@ await writeFile('dist/index.html',html);
 // Browser-only entry uses the same origin and database, without promoting a WebAPK install.
 const browserHtml=html.replace('<link rel="manifest" href="./manifest.webmanifest">','')
   .replace('<title>不务正豆 · 幸运抽奖</title>','<title>不务正豆·浏览器兼容版</title>')
-  .replace('不务正豆 · v1.0.2 ·','不务正豆 · 浏览器兼容版 v1.0.2 ·');
+  .replace('不务正豆 · v1.2.0 ·','不务正豆 · 浏览器兼容版 v1.2.0 ·');
 await writeFile('dist/browser.html',browserHtml);
-console.log('Built self-contained PWA and browser-compatible shell v1.0.2');
+console.log('Built self-contained PWA and browser-compatible shell v1.2.0');

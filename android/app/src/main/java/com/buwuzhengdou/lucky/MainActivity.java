@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 30) {
             getWindow().setDecorFitsSystemWindows(false);
             root.setOnApplyWindowInsetsListener((v,insets) -> {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
                 v.setPadding(bars.left,bars.top,bars.right,bars.bottom); return insets;
             });
         }
@@ -119,7 +119,7 @@ public class MainActivity extends Activity {
     public final class BackupBridge {
         @JavascriptInterface public void saveBackup(String json, String name) {
             if(json==null || json.length()>MAX_BACKUP){toast("备份超过20MB，未能保存");return;}
-            try { JSONObject object=new JSONObject(json);if(!"buwuzhengdou-backup".equals(object.optString("format"))||object.optInt("version")!=1)throw new IllegalArgumentException(); }
+            try { JSONObject object=new JSONObject(json);int version=object.optInt("version");if(!"buwuzhengdou-backup".equals(object.optString("format"))||(version!=1&&version!=2))throw new IllegalArgumentException(); }
             catch(Exception e){toast("备份内容无效，未能保存");return;}
             String cleanName=name==null?"不务正豆-完整备份.json":name.replaceAll("[^\\p{L}\\p{N}._-]","_");
             final String title=cleanName.substring(0,Math.min(cleanName.length(),100));

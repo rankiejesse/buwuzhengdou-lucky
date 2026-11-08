@@ -4,25 +4,46 @@ export const PRIZES = [
   ['p06','6折','折扣',16], ['p05','5折','折扣',2], ['m03','减3元','立减',5],
   ['m02','减2元','立减',15], ['m01','减1元','立减',25],
   ['slot','时段卡一张','体验卡',1.5], ['day','全天卡一张','体验卡',0.5]
-].map(([id,name,category,probability])=>({id,name,category,probability,total:null,monthly:null,daily:null}));
+].map(([id,name,category,probability])=>({id,name,category,probability,weekly:null,monthly:null,daily:null}));
 export const ZONE = 'Asia/Shanghai';
 export function dateKey(time = Date.now()) {
   const p = new Intl.DateTimeFormat('en-CA',{timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(time));
   return ['year','month','day'].map(k=>p.find(x=>x.type===k).value).join('-');
 }
 export function fresh(now = Date.now()) {
-  return {schema:1,revision:0,settingsRevision:0,updatedAt:new Date(now).toISOString(),prizes:structuredClone(PRIZES),records:[],ledger:[],audit:[],session:null};
+  return {schema:2,revision:0,settingsRevision:0,updatedAt:new Date(now).toISOString(),prizes:structuredClone(PRIZES),records:[],ledger:[],audit:[],topups:[],session:null};
+}
+export function weekKey(now=Date.now()) {
+  const d=new Date(dateKey(now)+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-(d.getUTCDay()+6)%7);return d.toISOString().slice(0,10);
+}
+export function cycleEnd(period,now=Date.now()) {
+  if(period==='weekly')return new Date(Date.parse(weekKey(now)+'T00:00:00+08:00')+7*86400000).toISOString();
+  if(period==='monthly'){const [y,m]=dateKey(now).split('-').map(Number);return new Date(Date.UTC(y,m,1)-8*3600000).toISOString();}
+  throw Error('补货周期只能选择本周或本月');
+}
+export function migrateState(input,now=Date.now()) {
+  if(input.schema===2)return input;
+  if(input.schema!==1)throw Error('不支持的数据版本，请使用更新版本应用');
+  const s=structuredClone(input);
+  s.prizes=s.prizes.map(({total,...p})=>({...p,weekly:total}));validatePrizes(s.prizes);
+  s.schema=2;s.topups=[];s.migratedFrom=1;s.settingsRevision++;s.revision++;s.updatedAt=new Date(now).toISOString();
+  s.audit.push({id:crypto.randomUUID(),at:s.updatedAt,type:'migration',detail:{from:1,to:2,rule:'总库存数值转为每周上限，保留全部历史领取流水'}});return s;
 }
 export function counts(state,id,now=Date.now()) {
-  const d=dateKey(now), month=d.slice(0,7); let total=0, monthly=0, daily=0;
-  for (const row of state.ledger) if(row.prizeId===id) {total++; if(row.date.startsWith(month))monthly++; if(row.date===d)daily++;}
-  return {total,monthly,daily};
+  const d=dateKey(now), month=d.slice(0,7),week=weekKey(now); let total=0, weekly=0, monthly=0, daily=0;
+  for (const row of state.ledger) if(row.prizeId===id) {total++;if(row.date>=week&&row.date<=d)weekly++;if(row.date.startsWith(month))monthly++;if(row.date===d)daily++;}
+  return {total,weekly,monthly,daily};
+}
+export function topupActive(t,now=Date.now()){return !t.cancelledAt&&Date.parse(t.createdAt)<=now&&now<Date.parse(t.expiresAt);}
+export function effectiveLimits(state,prize,now=Date.now()) {
+  const bonus={weekly:0,monthly:0};for(const t of state.topups||[])if(t.prizeId===prize.id&&topupActive(t,now))bonus[t.period]+=t.quantity;
+  return {weekly:prize.weekly===null?null:prize.weekly+bonus.weekly,monthly:prize.monthly===null?null:prize.monthly+bonus.monthly,daily:prize.daily,bonus};
 }
 export function availability(state, prize, now=Date.now()) {
-  const used=counts(state,prize.id,now), reasons=[];
+  const used=counts(state,prize.id,now), reasons=[],limits=effectiveLimits(state,prize,now);
   if(prize.probability===0)reasons.push('概率为 0');
-  for (const [key,label] of [['total','总库存'],['monthly','月上限'],['daily','日上限']]) if(prize[key]!==null&&used[key]>=prize[key])reasons.push(`${label}已用完`);
-  return {used,available:reasons.length===0,reason:reasons.join('、'),remaining:prize.total===null?null:Math.max(0,prize.total-used.total)};
+  for (const [key,label] of [['weekly','周上限'],['monthly','月上限'],['daily','日上限']]) if(limits[key]!==null&&used[key]>=limits[key])reasons.push(`${label}已用完`);
+  return {used,limits,available:reasons.length===0,reason:reasons.join('、'),remaining:limits.weekly===null?null:Math.max(0,limits.weekly-used.weekly)};
 }
 export function pool(state,now=Date.now()) {
   const rows=state.prizes.filter(p=>availability(state,p,now).available);
@@ -35,13 +56,13 @@ export function validatePrizes(prizes) {
     const p=prizes.find(x=>x.id===def.id);
     if(!p||p.name!==def.name||p.category!==def.category||prizes.filter(x=>x.id===def.id).length!==1)throw Error('奖项名称、类别或标识不正确');
     if(typeof p.probability!=='number'||!Number.isFinite(p.probability)||p.probability<0||p.probability>100)throw Error('概率必须为 0 至 100 的数字');
-    for(const k of ['total','monthly','daily'])if(p[k]!==null&&(!Number.isSafeInteger(p[k])||p[k]<0))throw Error('库存只能为非负整数或留空');
+    for(const k of ['weekly','monthly','daily'])if(p[k]!==null&&(!Number.isSafeInteger(p[k])||p[k]<0))throw Error('库存只能为非负整数或留空');
   }
   if(Math.abs(prizes.reduce((s,p)=>s+p.probability,0)-100)>1e-8)throw Error('十种奖项的配置概率合计必须为 100%（库存暂停不改变配置概率）');
 }
 const pending=s=>{if(s.session?.status==='pending')throw Error('请先处理当前中奖结果');};
 export function command(state, cmd, now=Date.now(), random=()=>crypto.getRandomValues(new Uint32Array(1))[0]/4294967296, uuid=()=>crypto.randomUUID()) {
-  const s=structuredClone(state), at=new Date(now).toISOString(); let result;
+  const s=structuredClone(migrateState(state,now)), at=new Date(now).toISOString(); let result;
   const audit=(type,detail)=>s.audit.push({id:uuid(),at,type,detail});
   switch(cmd.type){
     case 'draw': {
@@ -70,8 +91,21 @@ export function command(state, cmd, now=Date.now(), random=()=>crypto.getRandomV
       pending(s);if(cmd.id!==undefined&&s.session?.id!==cmd.id)throw Error('顾客交接状态已变化，请重新检查');s.session=null;break;
     case 'settings':
       pending(s);if(cmd.expectedRevision!==s.settingsRevision)throw Error('另一页面已修改奖池，请重新打开设置后保存');
-      validatePrizes(cmd.prizes);audit('settings',{before:s.prizes,after:cmd.prizes});s.prizes=structuredClone(cmd.prizes);s.settingsRevision++;break;
-    case 'defaults':pending(s);audit('defaults',{before:s.prizes,after:PRIZES});s.prizes=structuredClone(PRIZES);s.settingsRevision++;break;
+      validatePrizes(cmd.prizes);audit('settings',{before:s.prizes,after:cmd.prizes});s.prizes=structuredClone(cmd.prizes);s.settingsRevision++;delete s.migratedFrom;break;
+    case 'defaults':pending(s);audit('defaults',{before:s.prizes,after:PRIZES});s.prizes=structuredClone(PRIZES);s.topups=[];s.settingsRevision++;delete s.migratedFrom;break;
+    case 'topup': {
+      pending(s);const p=s.prizes.find(p=>p.id===cmd.prizeId);
+      if(!p||!['weekly','monthly'].includes(cmd.period)||!Number.isSafeInteger(cmd.quantity)||cmd.quantity<=0)throw Error('请选择奖项、补货周期，并输入正整数数量');
+      if(p[cmd.period]===null)throw Error('该周期库存已设为不限，无需补货');
+      if(!Number.isSafeInteger(effectiveLimits(s,p,now)[cmd.period]+cmd.quantity))throw Error('补货数量过大');
+      const topup={id:uuid(),prizeId:p.id,period:cmd.period,quantity:cmd.quantity,createdAt:at,expiresAt:cycleEnd(cmd.period,now)};
+      s.topups.push(topup);audit('topup',topup);result=topup;break;
+    }
+    case 'cancelTopup': {
+      pending(s);const topup=s.topups.find(t=>t.id===cmd.id);
+      if(!topup||!topupActive(topup,now))throw Error('该补货已失效或已撤销');
+      topup.cancelledAt=at;audit('cancelTopup',{id:topup.id});break;
+    }
     case 'clearRecords':pending(s);audit('clearRecords',{removed:s.records.length});s.records=[];break;
     default:throw Error('未知操作');
   }
@@ -79,9 +113,9 @@ export function command(state, cmd, now=Date.now(), random=()=>crypto.getRandomV
 }
 function validTime(t){return typeof t==='string' && /^\d{4}-\d{2}-\d{2}T/.test(t)&&Number.isFinite(Date.parse(t));}
 export function validateBackup(input) {
-  if(!input||input.format!=='buwuzhengdou-backup'||input.version!==1)throw Error('不是本应用支持的 v1 备份');
-  const s=input.state;
-  if(!s||s.schema!==1)throw Error('不支持的数据版本');validatePrizes(s.prizes);
+  if(!input||input.format!=='buwuzhengdou-backup'||![1,2].includes(input.version))throw Error('不是本应用支持的 v1/v2 备份');
+  if(!input.state||input.state.schema!==input.version)throw Error('备份版本与数据版本不一致');
+  const s=input.state.schema===1?migrateState(input.state):structuredClone(input.state);validatePrizes(s.prizes);
   for(const k of ['records','ledger','audit'])if(!Array.isArray(s[k]))throw Error('备份缺少完整记录');
   for(const k of ['revision','settingsRevision'])if(!Number.isSafeInteger(s[k])||s[k]<0)throw Error('版本号无效');
   if(!validTime(s.updatedAt))throw Error('更新时间无效');
@@ -95,9 +129,18 @@ export function validateBackup(input) {
     if(!p||!l||l.prizeId!==row.prizeId||l.at!==row.at||row.date!==l.date||row.name!==p.name||row.category!==p.category||row.status!=='claimed'||recordIds.has(row.id))throw Error('中奖记录与库存变化不一致');recordIds.add(row.id);
   }
   for(const row of s.audit){
-    if(!row||typeof row.id!=='string'||!validTime(row.at)||!['settings','defaults','clearRecords','import'].includes(row.type)||!row.detail||typeof row.detail!=='object')throw Error('设置变更记录无效');
+    if(!row||typeof row.id!=='string'||!validTime(row.at)||!['settings','defaults','clearRecords','import','migration','topup','cancelTopup','clearData'].includes(row.type)||!row.detail||typeof row.detail!=='object')throw Error('设置变更记录无效');
   }
+  if(!Array.isArray(s.topups))throw Error('缺少临时补货记录');
+  const topupIds=new Set();for(const t of s.topups){
+    if(!t||typeof t.id!=='string'||topupIds.has(t.id)||!PRIZES.some(p=>p.id===t.prizeId)||!['weekly','monthly'].includes(t.period)||!Number.isSafeInteger(t.quantity)||t.quantity<=0||!validTime(t.createdAt)||!validTime(t.expiresAt)||t.expiresAt!==cycleEnd(t.period,t.createdAt)||(t.cancelledAt&&!validTime(t.cancelledAt)))throw Error('临时补货记录无效');topupIds.add(t.id);
+  }
+  for(const p of s.prizes){const limits=effectiveLimits(s,p);for(const k of ['weekly','monthly'])if(limits[k]!==null&&!Number.isSafeInteger(limits[k]))throw Error('临时补货额度超出支持范围');}
   // Never restore a redeemable ticket. Restoring a backup is a replacement, not a sync merge.
   return {...structuredClone(s),session:null};
 }
-export function backup(state){return {format:'buwuzhengdou-backup',version:1,exportedAt:new Date().toISOString(),timezone:ZONE,state:structuredClone(state)};}
+export function backup(state){return {format:'buwuzhengdou-backup',version:2,exportedAt:new Date().toISOString(),timezone:ZONE,state:structuredClone(state)};}
+export function clearBusiness(state,now=Date.now()) {
+  const old=migrateState(state,now),s=fresh(now);s.prizes=structuredClone(old.prizes);s.revision=old.revision+1;s.settingsRevision=old.settingsRevision+1;
+  s.audit.push({id:crypto.randomUUID(),at:s.updatedAt,type:'clearData',detail:{removedRecords:old.records.length,removedLedger:old.ledger.length,removedTopups:old.topups.length}});return s;
+}
