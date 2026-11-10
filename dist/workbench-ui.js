@@ -3,9 +3,9 @@ const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>new Intl.NumberFormat('zh-CN',{style:'currency',currency:'CNY'}).format(v/100);
 const inputAmount=v=>(v/100).toFixed(2);
-const field=(id,label,value=0)=>`<label class="field owner-field">${label}<input id="${id}" type="number" inputmode="decimal" min="0" max="999999999.99" step="0.01" required value="${inputAmount(value)}"></label>`;
+const field=(id,label,value=0)=>`<label class="field owner-field">${label}<input id="${id}" type="number" inputmode="decimal" min="0" max="999999999.99" step="0.01" placeholder="0.00" value="${value===0?'':inputAmount(value)}"></label>`;
 const localTime=at=>{const p=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(at));return p.replace(' ','T');};
-const amount=id=>moneyInput($(id).value);
+const amount=id=>moneyInput($(id).value||'0');
 const basisLabels={fixed:'固定总预算',month:'本月收入',year:'本年收入',total:'总收入'};
 const trash=(type,id,extra='')=>`<button class="trash-button" data-delete="${type}" data-id="${esc(id)}" ${extra} aria-label="删除" title="删除"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
 const swipe=(body,button)=>`<div class="swipe-row">${button}<div class="swipe-front">${body}</div></div>`;
@@ -58,7 +58,8 @@ export function createWorkbenchUI(ctx){
    $('#add-category').onclick=()=>ctx.safe(async()=>{const ok=await form('新建预算类别','<label class="field owner-field">类别名称<input id="category-name" required maxlength="80" placeholder="例如：材料、设备"></label>',()=>execute({type:'categorySave',bookId:book.id,name:$('#category-name').value}),'新增类别');if(ok)ctx.render();});
    document.querySelectorAll('[data-add-item]').forEach(b=>b.onclick=()=>ctx.safe(()=>itemForm(book,book.categories.find(c=>c.id===b.dataset.addItem))));
    document.querySelectorAll('[data-edit-item]').forEach(b=>b.onclick=()=>ctx.safe(()=>{const c=book.categories.find(c=>c.id===b.dataset.category);return itemForm(book,c,c.items.find(i=>i.id===b.dataset.editItem));}));
-   document.querySelectorAll('[data-toggle-item]').forEach(b=>b.onchange=()=>ctx.safe(async()=>{const c=book.categories.find(c=>c.id===b.dataset.category),item=c.items.find(i=>i.id===b.dataset.toggleItem);b.checked=item.paid;if(!item.paid){await itemForm(book,c,{...item,paid:true,actual:item.actual||item.planned});return;}if(await ctx.ask('撤销已购买状态？','这会移除本次实际支出，预算余额将重新计算。')){await execute({type:'itemToggle',bookId:book.id,categoryId:c.id,id:item.id});ctx.render();}}));
+   document.querySelectorAll('[data-toggle-item]').forEach(b=>b.onchange=()=>ctx.safe(async()=>{document.querySelectorAll('[data-toggle-item]').forEach(input=>input.disabled=true);try{await execute({type:'itemToggle',bookId:book.id,categoryId:b.dataset.category,id:b.dataset.toggleItem});}finally{ctx.render();}}));
+   document.querySelectorAll('.todo-row').forEach(row=>{row.closest('.swipe-front').onclick=e=>{if(!e.target.closest('input,button'))row.querySelector('[data-edit-item]').click();};});
   }
   bindSwipes(locked);
  }

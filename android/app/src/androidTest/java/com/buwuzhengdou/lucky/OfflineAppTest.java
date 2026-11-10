@@ -103,7 +103,8 @@ public class OfflineAppTest {
     @Test public void workbenchIncomeBudgetsAndChineseLocalePersistOffline() throws Exception {
         assertEquals("zh",activity.getResources().getConfiguration().getLocales().get(0).getLanguage());
         tap("[data-page=income]");tap("#register-income");waitJS("!!document.querySelector('#cash-initial')");
-        eval("document.querySelector('#cash-initial').value='100';document.querySelector('#cash-remaining').value='200';document.querySelector('#income-wechat').value='600';document.querySelector('#income-alipay').value='300'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        assertEquals("",eval("document.querySelector('#cash-initial').value"));assertEquals("0.00",eval("document.querySelector('#cash-initial').placeholder"));
+        eval("document.querySelector('#cash-initial').value='100';document.querySelector('#cash-remaining').value='200';document.querySelector('#income-wechat').value='600'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
         String first=state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getString("registeredAt");
         tap("#register-income");waitJS("document.querySelector('dialog').open && !!document.querySelector('#cash-remaining')");eval("document.querySelector('#cash-remaining').value='201'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
         assertEquals(first,state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getString("registeredAt"));
@@ -111,6 +112,9 @@ public class OfflineAppTest {
         tap("[data-book]");tap("#add-category");waitJS("!!document.querySelector('#category-name')");eval("document.querySelector('#category-name').value='耗材'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
         tap("[data-add-item]");waitJS("!!document.querySelector('#item-name')");eval("document.querySelector('#item-name').value='豆子';document.querySelector('#item-planned').value='100';document.querySelector('#item-actual').value='80';document.querySelector('#item-paid').checked=true");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
         assertTrue(String.valueOf(eval("document.querySelector('.money-grid').textContent")).contains("420.00"));
+        tap("[data-toggle-item]");waitJS("!document.querySelector('[data-toggle-item]').checked");assertEquals(Boolean.FALSE,eval("document.querySelector('dialog').open"));
+        tap("[data-toggle-item]");waitJS("document.querySelector('[data-toggle-item]').checked && !document.querySelector('[data-toggle-item]').disabled");assertEquals(Boolean.FALSE,eval("document.querySelector('dialog').open"));
+        tap("[data-edit-item]");waitJS("document.querySelector('dialog').open && !!document.querySelector('#item-actual')");assertEquals("80.00",eval("document.querySelector('#item-actual').value"));tap("#owner-cancel");
         scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");
         assertEquals(1,state().getJSONObject("workbench").getJSONArray("books").length());assertEquals(20100,state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getInt("remaining"));
         tap("[data-page=settings]");tap("#clear-all-data");tap("#ok-modal");waitJS("document.querySelector('#toast').textContent.includes('已清除')");assertEquals(1,state().getJSONObject("workbench").getJSONArray("books").length());

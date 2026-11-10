@@ -15,8 +15,8 @@ test('daily registration, original time, calendar date edit, history, full backu
 });
 test('budget category and todo UI, purchase impacts another book, confirmation deletes and restores allocation',async({page})=>{
  await page.goto('/');await income(page);await nav(page,'budget');await book(page,'共享月预算','month','50');await book(page,'设备本');
- await page.locator('[data-book]').filter({hasText:'设备本'}).click();await category(page);await page.locator('[data-add-item]').click();await page.locator('#item-name').fill('新设备');await page.locator('#item-planned').fill('300');await submit(page);
- expect((await read(page)).workbench.books[1].categories[0].items[0].paid).toBe(false);await page.locator('[data-toggle-item]').click();await expect(page.locator('#item-actual')).toHaveValue('300.00');await page.locator('#item-actual').fill('200');await submit(page);
+ await page.locator('[data-book]').filter({hasText:'设备本'}).click();await category(page);await page.locator('[data-add-item]').click();await page.locator('#item-name').fill('新设备');await page.locator('#item-planned').fill('300');await page.locator('#item-actual').fill('200');await submit(page);
+ expect((await read(page)).workbench.books[1].categories[0].items[0].paid).toBe(false);await page.locator('[data-toggle-item]').check();await expect(page.locator('[data-toggle-item]')).toBeChecked();await expect(page.locator('#dialog')).not.toBeVisible();await page.locator('[data-toggle-item]').uncheck();await expect(page.locator('[data-toggle-item]')).not.toBeChecked();await expect(page.locator('#dialog')).not.toBeVisible();await page.locator('[data-toggle-item]').check();await expect(page.locator('[data-toggle-item]')).toBeChecked();await expect(page.locator('#dialog')).not.toBeVisible();
  await page.locator('#back-books').click();await expect(page.locator('[data-book]').filter({hasText:'共享月预算'})).toContainText('300.00');
  await page.locator('[data-book]').filter({hasText:'共享月预算'}).click();await category(page);await page.locator('[data-add-item]').click();await page.locator('#item-name').fill('耗材');await page.locator('#item-planned').fill('120');await page.locator('#item-actual').fill('100');await page.locator('#item-paid').check();await submit(page);await expect(page.locator('.money-grid').first()).toContainText('200.00');
  await page.setViewportSize({width:1280,height:800});await page.screenshot({path:'artifacts/workbench-budget-tablet.png',fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -31,4 +31,15 @@ test('touch swipe reveals trash without opening edit dialog; cancel delete keeps
  const context=await browser.newContext({hasTouch:true,viewport:{width:412,height:915}}),page=await context.newPage();await page.goto('/');await income(page);
  await page.locator('.swipe-front').evaluate(el=>{el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',clientX:280,clientY:30}));el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerType:'touch',clientX:100,clientY:30}));el.querySelector('button').click();});
  await expect(page.locator('.swipe-row')).toHaveClass(/revealed/);await expect(page.locator('#dialog')).not.toBeVisible();await page.locator('[data-delete=incomeDelete]').click();await page.locator('#cancel-modal').click();expect((await read(page)).workbench.incomes).toHaveLength(1);await context.close();
+});
+
+
+test('empty amounts show placeholder, save as zero, and row padding opens editor without toggling purchase',async({page})=>{
+ await page.goto('/');await nav(page,'income');await page.locator('#register-income').click();
+ for(const id of ['cash-initial','cash-remaining','income-wechat','income-alipay']){await expect(page.locator('#'+id)).toHaveValue('');await expect(page.locator('#'+id)).toHaveAttribute('placeholder','0.00');}
+ await page.locator('#income-wechat').fill('12.34');await submit(page);let s=await read(page);expect(s.workbench.incomes[0]).toMatchObject({initial:0,remaining:0,wechat:1234,alipay:0});
+ await page.locator('#register-income').click();await expect(page.locator('#cash-initial')).toHaveValue('');await expect(page.locator('#income-wechat')).toHaveValue('12.34');await page.locator('#income-wechat').fill('');await submit(page);expect((await read(page)).workbench.incomes[0].wechat).toBe(0);
+ await nav(page,'budget');await book(page,'空金额测试');await page.locator('[data-book]').click();await category(page);await page.locator('[data-add-item]').click();await page.locator('#item-name').fill('零元待办');await expect(page.locator('#item-planned')).toHaveValue('');await expect(page.locator('#item-actual')).toHaveValue('');await submit(page);
+ await page.locator('[data-toggle-item]').check();await expect(page.locator('#dialog')).not.toBeVisible();await expect.poll(async()=>(await read(page)).workbench.books[0].categories[0].items[0].paid).toBe(true);
+ await page.locator('.todo-row').click({position:{x:2,y:2}});await expect(page.locator('#owner-form')).toBeVisible();await expect(page.locator('#item-paid')).toBeChecked();await page.locator('#owner-cancel').click();await page.reload();await nav(page,'budget');await page.locator('[data-book]').click();await expect(page.locator('[data-toggle-item]')).toBeChecked();
 });

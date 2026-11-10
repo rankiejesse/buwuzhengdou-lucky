@@ -4,7 +4,7 @@
 
 ## 安装使用
 
-- [独立安卓APK v1.3.0](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.3.0/buwuzhengdou-workbench-1.3.0.apk)
+- [独立安卓APK v1.3.1](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.3.1/buwuzhengdou-workbench-1.3.1.apk)
 - [安卓安装、升级与迁移说明](安卓应用使用说明.md)
 - [网页版](https://rankiejesse.github.io/buwuzhengdou-lucky/)
 - [浏览器兼容入口](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)
@@ -12,6 +12,14 @@
 APK桌面名称为“不务正豆工作台”，资源内置，首次启动即可离线，不依赖Chrome安装壳。由1.1.0升级时直接覆盖安装，保持同一应用和签名，不要先卸载。网页和APK分别保存自己的数据，跨环境请用JSON迁移。
 
 PWA首次联网加载，等待“离线已就绪”后可从安卓Chrome安装。若Chrome安装版在系统图标处停留，可改用独立APK或浏览器兼容入口；原启动壳故障尚无该设备的确切诊断。
+
+## App v1.3.1 操作优化
+
+本轮只发布安卓APK，GitHub Pages保持v1.3.0；源码维护在 `codex/app-1.3.1` 分支，避免触发main的网页部署。
+
+- 金额零值显示为空输入框，使用0.00提示，留空按0保存；已有非零金额编辑时保留。
+- 待办小框直接切换已购买状态并保存，不打开编辑或确认弹窗，按已填实际金额更新预算；实际金额留空表示0，不自动改为拟购金额。
+- 点击待办其余区域才编辑金额和名称。升级保留全部已有数据。
 
 ## v1.3.0 工作台
 
