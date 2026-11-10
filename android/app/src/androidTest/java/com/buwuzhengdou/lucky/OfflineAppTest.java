@@ -60,7 +60,9 @@ public class OfflineAppTest {
         eval("document.querySelector("+quoted+").scrollIntoView({block:'center'})");SystemClock.sleep(350);
         JSONObject rect=(JSONObject)eval("(()=>{let r=document.querySelector("+quoted+").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,w:innerWidth};})()");
         int[] coords=new int[2];int[] width=new int[1];InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{activity.webView.getLocationOnScreen(coords);width[0]=activity.webView.getWidth();});
-        double scale=width[0]/rect.getDouble("w");assertTrue(device.click(coords[0]+(int)(rect.getDouble("x")*scale),coords[1]+(int)(rect.getDouble("y")*scale)));
+        double scale=width[0]/rect.getDouble("w");
+        System.out.println("tap "+selector+" rect="+rect+" native="+coords[0]+","+coords[1]+" width="+width[0]+" scroll="+eval("({x:scrollX,y:scrollY,dpr:devicePixelRatio,active:document.querySelector('.nav-item.active')?.dataset.page})"));
+        assertTrue(device.click(coords[0]+(int)(rect.getDouble("x")*scale),coords[1]+(int)(rect.getDouble("y")*scale)));
     }
     void claim() throws Exception {tap("#start-draw");waitJS("!!document.querySelector('#claim')");tap("#claim");waitJS("!!document.querySelector('#next-customer')");}
     void dataPage() throws Exception {tap("[data-page=data]");waitJS("!!document.querySelector('#export-data')");}
@@ -84,6 +86,7 @@ public class OfflineAppTest {
     }
 
     @Test public void exportAndImportThroughAndroidDocumentPicker() throws Exception {
+        async("await (await import('./storage.js')).repository.execute('live',{type:'workbench:incomeSave',initial:10000,remaining:20000,wechat:60000,alipay:30000});return true;");
         claim();dataPage();tap("#export-data");
         String filename="bean-native-"+System.currentTimeMillis()+".json";
         UiObject2 name=device.wait(Until.findObject(By.clazz("android.widget.EditText")),15000);assertNotNull("Android save dialog",name);name.setText(filename);
@@ -94,6 +97,23 @@ public class OfflineAppTest {
         UiObject2 file=device.wait(Until.findObject(By.text(filename)),10000);assertNotNull("Exported backup in Android picker",file);file.click();
         waitJS("!!document.querySelector('#ok-modal')");tap("#ok-modal");waitJS("!!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='2468'");tap("#owner-submit");waitJS("document.querySelector('#toast').textContent.includes('导入成功')");
         assertEquals(1,state().getJSONArray("records").length());assertEquals(1,state().getJSONArray("ledger").length());
+        assertEquals(60000,state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getInt("wechat"));
+    }
+
+    @Test public void workbenchIncomeBudgetsAndChineseLocalePersistOffline() throws Exception {
+        assertEquals("zh",activity.getResources().getConfiguration().getLocales().get(0).getLanguage());
+        tap("[data-page=income]");tap("#register-income");waitJS("!!document.querySelector('#cash-initial')");
+        eval("document.querySelector('#cash-initial').value='100';document.querySelector('#cash-remaining').value='200';document.querySelector('#income-wechat').value='600';document.querySelector('#income-alipay').value='300'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        String first=state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getString("registeredAt");
+        tap("#register-income");waitJS("document.querySelector('dialog').open && !!document.querySelector('#cash-remaining')");eval("document.querySelector('#cash-remaining').value='201'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        assertEquals(first,state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getString("registeredAt"));
+        tap("[data-page=budget]");tap("#add-book");waitJS("!!document.querySelector('#book-name')");eval("document.querySelector('#book-name').value='材料预算';document.querySelector('#book-limit').value='500'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        tap("[data-book]");tap("#add-category");waitJS("!!document.querySelector('#category-name')");eval("document.querySelector('#category-name').value='耗材'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        tap("[data-add-item]");waitJS("!!document.querySelector('#item-name')");eval("document.querySelector('#item-name').value='豆子';document.querySelector('#item-planned').value='100';document.querySelector('#item-actual').value='80';document.querySelector('#item-paid').checked=true");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        assertTrue(String.valueOf(eval("document.querySelector('.money-grid').textContent")).contains("420.00"));
+        scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");
+        assertEquals(1,state().getJSONObject("workbench").getJSONArray("books").length());assertEquals(20100,state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getInt("remaining"));
+        tap("[data-page=settings]");tap("#clear-all-data");tap("#ok-modal");waitJS("document.querySelector('#toast').textContent.includes('已清除')");assertEquals(1,state().getJSONObject("workbench").getJSONArray("books").length());
     }
 
     @Test public void ownerPasswordsTemporaryStockRecoveryAndOneConfirmationClear() throws Exception {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Fully local. No INTERNET, camera, contacts, or broad storage permission. -->
-    <application android:label="不务正豆抽奖" android:icon="@mipmap/ic_launcher"
+    <application android:label="不务正豆工作台" android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher" android:theme="@style/Theme.Bean"
         android:allowBackup="false" android:supportsRtl="false" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true"

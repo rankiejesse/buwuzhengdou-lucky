@@ -1,5 +1,5 @@
-const CACHE='bean-shell-v1.2.0';
-const FILES=['./index.html','./browser.html','./repair.html','./style.css','./app.js','./engine.js','./storage.js','./auth.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
+const CACHE='bean-shell-v1.3.0';
+const FILES=['./index.html','./browser.html','./repair.html','./style.css','./app.js','./engine.js','./storage.js','./auth.js','./workbench.js','./workbench-ui.js','./language.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   await cache.addAll(FILES.map(path=>new Request(new URL(path,self.location),{cache:'reload'})));

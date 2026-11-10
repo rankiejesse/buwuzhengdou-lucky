@@ -22,6 +22,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
+    @Override protected void attachBaseContext(android.content.Context base) {
+        String choice=base.getSharedPreferences("workbench",MODE_PRIVATE).getString("language","zh-CN");
+        android.content.res.Configuration config=new android.content.res.Configuration(base.getResources().getConfiguration());
+        java.util.Locale selected="system".equals(choice)?android.content.res.Resources.getSystem().getConfiguration().getLocales().get(0):java.util.Locale.SIMPLIFIED_CHINESE;
+        java.util.Locale.setDefault(selected);config.setLocale(selected);
+        super.attachBaseContext(base.createConfigurationContext(config));
+    }
     private static final String HOST = "appassets.androidplatform.net";
     private static final String START = "https://" + HOST + "/assets/www/index.html";
     private static final int OPEN_JSON = 41, SAVE_JSON = 42;
@@ -117,6 +124,12 @@ public class MainActivity extends Activity {
     private void toast(String text) { runOnUiThread(()->Toast.makeText(this,text,Toast.LENGTH_LONG).show()); }
 
     public final class BackupBridge {
+        @JavascriptInterface public String systemLanguage() { return android.content.res.Resources.getSystem().getConfiguration().getLocales().get(0).toLanguageTag(); }
+        @JavascriptInterface public void setLanguage(String choice) {
+            if(!"zh-CN".equals(choice)&&!"system".equals(choice))return;
+            getSharedPreferences("workbench",MODE_PRIVATE).edit().putString("language",choice).apply();
+            runOnUiThread(()->{android.content.res.Configuration config=new android.content.res.Configuration(getResources().getConfiguration());java.util.Locale selected="system".equals(choice)?android.content.res.Resources.getSystem().getConfiguration().getLocales().get(0):java.util.Locale.SIMPLIFIED_CHINESE;java.util.Locale.setDefault(selected);config.setLocale(selected);getResources().updateConfiguration(config,getResources().getDisplayMetrics());});
+        }
         @JavascriptInterface public void saveBackup(String json, String name) {
             if(json==null || json.length()>MAX_BACKUP){toast("备份超过20MB，未能保存");return;}
             try { JSONObject object=new JSONObject(json);int version=object.optInt("version");if(!"buwuzhengdou-backup".equals(object.optString("format"))||(version!=1&&version!=2))throw new IllegalArgumentException(); }

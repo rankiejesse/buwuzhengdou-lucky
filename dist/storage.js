@@ -13,8 +13,8 @@ function checkGrant(s,grant){if(!s.passwordHash||s.revision!==grant.revision||gr
 export async function openStore(){
   if(connection)return connection;
   connection=await new Promise((resolve,reject)=>{
-    // Version 2 closes v1 clients, preventing old cached code from bypassing new owner guards.
-    const r=indexedDB.open(DB_NAME,2);
+    // Close older clients: their lottery-only clear does not preserve workbench data.
+    const r=indexedDB.open(DB_NAME,3);
     r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('states'))r.result.createObjectStore('states');};
     r.onerror=()=>reject(r.error);r.onblocked=()=>reject(Error('请关闭其他旧版本页面后重试'));
     r.onsuccess=()=>{r.result.onversionchange=()=>{r.result.close();connection=null;};resolve(r.result);};

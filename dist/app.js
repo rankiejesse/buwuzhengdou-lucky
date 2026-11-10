@@ -1,5 +1,7 @@
 import {PRIZES,dateKey,counts,availability,pool,backup,validateBackup,weekKey,topupActive,cycleEnd} from './engine.js';
 import {repository,security} from './storage.js';
+import {createWorkbenchUI} from './workbench-ui.js';
+import {getLanguage,setLanguage,watchLanguage} from './language.js';
 const $=s=>document.querySelector(s), content=$('#content'), dialog=$('#dialog');
 const browserMode=location.pathname.endsWith('/browser.html');
 const nativeApp=!!window.BeanAndroid;
@@ -14,6 +16,8 @@ const time=t=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-
 const n=v=>v===null?'不限':v;
 const symbols={折扣:'✧',立减:'◇',体验卡:'▰'};
 const names={draw:['幸运抽奖','LUCKY DRAW'],records:['今日中奖查询','LUCKY RECORDS'],inventory:['库存看板','PRIZE INVENTORY'],settings:['奖池设置','PRIZE SETTINGS'],data:['数据管理','DATA & BACKUP']};
+names.income=['每日收支','DAILY INCOME'];names.budget=['预算小池','BUDGET POOL'];
+const workbenchUI=createWorkbenchUI({state:()=>state,mode:()=>mode,act,render,safe,formDialog,ask,toast,heading,dateKey,stamp,content});
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4500);}
 function closeModal(value){dialog.querySelectorAll('input[type=password]').forEach(input=>input.value='');dialog.close();const resolve=modalResolve;modalResolve=null;resolve?.(value);}
 function ask(title,message,{danger=false,label='确认',typed=false}={}){
@@ -85,7 +89,7 @@ function render(){
   document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   $('#top-title').textContent=names[page][0];$('.top-subtitle').textContent=' / '+names[page][1];
   $('#today-label').textContent=dateKey().split('-').join(' . ');
-  ({draw:renderDraw,records:renderRecords,inventory:renderInventory,settings:renderSettings,data:renderData})[page]();
+  ({draw:renderDraw,records:renderRecords,inventory:renderInventory,settings:renderSettings,data:renderData,income:workbenchUI.renderIncome,budget:workbenchUI.renderBudget})[page]();
 }
 function renderDraw(){
   const active=pool(state), session=state.session, settled=session&&session.status!=='pending';
@@ -157,7 +161,9 @@ function renderSettings(){
     <div class="action-row settings-foot"><button class="primary" id="save-settings">保存设置</button><button class="secondary" id="discard-settings">撤销修改</button><button class="secondary" id="restore-defaults">恢复默认</button><span class="sum" id="prob-sum"></span></div><p id="save-feedback" class="help">${dirty?'有未保存的修改':'设置已保存 · '+stamp(state.updatedAt)}</p>
     ${topupCard()}
     <section class="card mode-card"><div class="card-heading"><h2>老板专用测试模式</h2><span class="card-label">SANDBOX</span></div><p class="help">测试奖池、库存、补货和中奖记录独立保存。可指定十种奖项逐一测试；测试概率和库存的修改也需要老板密码。</p><div class="action-row"><button id="toggle-test" class="secondary">${mode==='sandbox'?'退出测试，返回正式模式':'进入测试模式'}</button>${mode==='sandbox'?'<button id="reset-test" class="secondary">重置测试数据</button><button id="try-draw" class="primary">去测试抽奖 →</button>':''}</div></section>
-    <section class="card mode-card"><h2>清除抽奖数据</h2><p class="help">一次确认后，清空正式与测试的领取记录、库存流水、临时补货和当前抽奖状态，领取计数归零。保留奖池配置、老板密码与安全问题。</p><button id="clear-all-data" class="danger">清除抽奖数据</button></section>`;
+    <section class="card mode-card"><h2>清除抽奖数据</h2><p class="help">一次确认后，清空正式与测试的领取记录、库存流水、临时补货和当前抽奖状态，领取计数归零。保留收支、预算、奖池配置、老板密码与安全问题。</p><button id="clear-all-data" class="danger">清除抽奖数据</button></section>`;
+  content.insertAdjacentHTML('afterbegin',`<section class="card owner-card"><div class="card-heading"><h2>语言设置</h2><label class="field">界面语言<select id="app-language"><option value="zh-CN" ${getLanguage()==='zh-CN'?'selected':''}>中文（简体）</option><option value="system" ${getLanguage()==='system'?'selected':''}>跟随系统（不支持的语言使用中文）</option></select></label></div></section>`);
+  $('#app-language').onchange=e=>{setLanguage(e.target.value);toast('语言已保存');};
   bindOwnerCard();bindTopups();$('#clear-all-data').onclick=()=>safe(clearAllData);
   $('#settings-table').oninput=e=>{const {id,field}=e.target.dataset;if(!id)return;const value=e.target.value;draft.find(p=>p.id===id)[field]=field!=='probability'&&value===''?null:value===''?NaN:Number(value);dirty=true;$('#save-feedback').textContent='有未保存的修改';updateSum();};updateSum();
   $('#save-settings').onclick=()=>safe(async()=>{
@@ -195,7 +201,7 @@ function bindTopups(){
   }));
 }
 async function clearAllData(){
-  if(!await ask('确认清除全部抽奖数据？','将删除正式与测试的领取记录、库存流水、临时补货和当前抽奖状态，周/月/日领取计数归零。保留奖池配置、老板密码与安全问题。建议先导出备份。',{danger:true,label:'确认清除'}))return;
+  if(!await ask('确认清除全部抽奖数据？','将删除正式与测试的领取记录、库存流水、临时补货和当前抽奖状态，周/月/日领取计数归零。收支与预算保留。保留奖池配置、老板密码与安全问题。建议先导出备份。',{danger:true,label:'确认清除'}))return;
   await repository.clearData();mode='live';sessionStorage.setItem('bean-mode',mode);settingsToken=null;draft=null;dirty=false;await reload();channel?.postMessage({security:true});render();toast('抽奖数据已清除，奖池配置和密码已保留');
 }
 async function toggleTest(){
@@ -209,7 +215,7 @@ function renderData(){
   const disabled=mode==='sandbox'?'disabled':'';
   content.innerHTML=heading('把好运，好好保存',nativeApp?'数据保存在本应用中。迁移设备或卸载前，请先导出备份。':'数据只保存在当前设备、当前浏览器中。迁移设备前，请先导出备份。')+`
     ${mode==='sandbox'?'<div class="notice">测试模式下不可导入、清空或导出正式数据。请先退出测试模式。</div>':''}
-    <div class="data-grid"><section class="card data-card"><div class="data-icon">↗ ▣</div><h2>导出完整备份</h2><p>包含奖项设置、中奖记录、库存变化流水与设置变更记录，保存为 JSON 文件。</p><button id="export-data" class="primary" ${disabled}>导出 JSON 备份 ↓</button></section>
+    <div class="data-grid"><section class="card data-card"><div class="data-icon">↗ ▣</div><h2>导出完整备份</h2><p>包含抽奖设置、中奖记录、库存流水、全部收支与预算小本，保存为 JSON 文件。</p><button id="export-data" class="primary" ${disabled}>导出 JSON 备份 ↓</button></section>
     <section class="card data-card"><div class="data-icon">▣ ↙</div><h2>导入已有备份</h2><p>检查文件内容后，整份替换本机正式数据。不会自动合并；请先备份当前数据。</p><button id="import-data" class="secondary" ${disabled}>选择 JSON 文件 ↑</button><input id="import-file" type="file" accept=".json,application/json" hidden></section>
     <section class="card data-card"><div class="data-icon">↺</div><h2>恢复默认奖池</h2><p>恢复十种默认概率、库存限制设为不限。保留历史中奖记录、库存流水与累计领取数量。</p><button id="data-defaults" class="secondary" ${disabled}>恢复默认奖池</button></section>
     <section class="card data-card"><div class="data-icon">⌫</div><h2>清空历史中奖记录</h2><p>仅清空中奖查询记录。库存流水继续保留，已消耗的库存不会返还。点击后确认一次即可。</p><button id="clear-records" class="danger" ${disabled}>清空历史记录</button></section></div>
@@ -226,7 +232,7 @@ function renderData(){
     const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>20*1024*1024)throw Error('备份超过 20MB，请联系维护人员处理');
     let input;try{input=JSON.parse(await file.text());}catch{throw Error('JSON 文件无法解析，请选择完整备份');}
     const checked=validateBackup(input);
-    if(await ask('确认导入并替换本机数据？',`备份更新时间：${stamp(checked.updatedAt)}\n包含 ${checked.records.length} 条中奖记录、${checked.ledger.length} 条库存流水。\n本机当前有 ${state.records.length} 条中奖记录。\n将覆盖现有数据，无法自动合并。待领取抽奖不会恢复，请先导出当前备份。`,{danger:true,label:'确认替换数据'})){
+    if(await ask('确认导入并替换本机数据？',`备份更新时间：${stamp(checked.updatedAt)}\n包含 ${checked.records.length} 条中奖记录、${checked.ledger.length} 条库存流水、${checked.workbench?.incomes.length||0} 条收支、${checked.workbench?.books.length||0} 个预算本。\n本机当前有 ${state.records.length} 条中奖记录。\n将覆盖现有抽奖、收支与预算数据；旧版备份不含收支与预算，导入会清空这部分数据。无法自动合并。待领取抽奖不会恢复，请先导出当前备份。`,{danger:true,label:'确认替换数据'})){
       const authorization=await authorizeOwner('导入奖池与库存需要老板密码');if(!authorization)return;
       await repository.replace('live',input,authorization);await reload();channel?.postMessage({mode});draft=null;dirty=false;settingsToken=null;render();toast('导入成功，已替换本机数据');
     }
@@ -272,3 +278,4 @@ async function initialize(){
   else $('#offline-status').textContent='此浏览器不支持离线安装';
 }
 initialize();
+watchLanguage();

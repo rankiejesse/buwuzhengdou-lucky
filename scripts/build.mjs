@@ -8,7 +8,7 @@ const html=template.replace('<link rel="stylesheet" href="./style.css">',()=>`<s
 await writeFile('dist/index.html',html);
 // Browser-only entry uses the same origin and database, without promoting a WebAPK install.
 const browserHtml=html.replace('<link rel="manifest" href="./manifest.webmanifest">','')
-  .replace('<title>不务正豆 · 幸运抽奖</title>','<title>不务正豆·浏览器兼容版</title>')
-  .replace('不务正豆 · v1.2.0 ·','不务正豆 · 浏览器兼容版 v1.2.0 ·');
+  .replace('<title>不务正豆工作台</title>','<title>不务正豆·浏览器兼容版</title>')
+  .replace('不务正豆 · v1.3.0 ·','不务正豆 · 浏览器兼容版 v1.3.0 ·');
 await writeFile('dist/browser.html',browserHtml);
-console.log('Built self-contained PWA and browser-compatible shell v1.2.0');
+console.log('Built self-contained PWA and browser-compatible shell v1.3.0');

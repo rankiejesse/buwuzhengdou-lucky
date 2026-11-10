@@ -65,13 +65,13 @@ test('old installed data migrates in place, and import cannot replace the device
  const result=await page.evaluate(async()=>{const {repository,security}=await import('./storage.js');const e=await import('./engine.js');const before=await security.info();await repository.replace('live',e.backup(await repository.read('live')),await security.authorize('2468'));return {before,after:await security.info(),authorized:!!await security.authorize('2468')};});expect(result.after.questions).toEqual(result.before.questions);expect(result.authorized).toBe(true);
 });
 
-test('database upgrade closes old clients and refuses v1 code without deleting its existing state',async({page})=>{
- await page.addInitScript(()=>{
-   const request=indexedDB.open('buwuzhengdou-lucky-v1',1);
+for(const legacyVersion of [1,2])test(`database upgrade closes old v${legacyVersion} clients and preserves existing data`,async({page})=>{
+ await page.addInitScript(legacyVersion=>{
+   const request=indexedDB.open('buwuzhengdou-lucky-v1',legacyVersion);
    request.onupgradeneeded=()=>{const store=request.result.objectStoreNames.contains('states')?request.transaction.objectStore('states'):request.result.createObjectStore('states');store.put({marker:'legacy-data'},'legacy-marker');};
    request.onsuccess=()=>{request.result.onversionchange=()=>{window.__oldClientClosed=true;request.result.close();};};
- });
+ },legacyVersion);
  await open(page);expect(await page.evaluate(()=>window.__oldClientClosed)).toBe(true);
- const result=await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('buwuzhengdou-lucky-v1',1);r.onerror=()=>resolve(r.error.name);r.onsuccess=()=>{r.result.close();resolve('opened');};}));expect(result).toBe('VersionError');expect((await raw(page)).schema).toBe(2);
+ const result=await page.evaluate(legacyVersion=>new Promise(resolve=>{const r=indexedDB.open('buwuzhengdou-lucky-v1',legacyVersion);r.onerror=()=>resolve(r.error.name);r.onsuccess=()=>{r.result.close();resolve('opened');};}),legacyVersion);expect(result).toBe('VersionError');expect((await raw(page)).schema).toBe(2);
  expect(await page.evaluate(async()=>{const db=await (await import('./storage.js')).openStore();return new Promise(resolve=>{const r=db.transaction('states').objectStore('states').get('legacy-marker');r.onsuccess=()=>resolve(r.result.marker);});})).toBe('legacy-data');
 });

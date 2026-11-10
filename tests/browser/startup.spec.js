@@ -37,7 +37,7 @@ test('safe repair upgrades the original worker and preserves settings, records, 
  await page.goto('/repair.html');await page.locator('#update').click();await expect(page.locator('#next-customer')).toBeVisible({timeout:35000});
  const after=await page.evaluate(async()=>(await import('./storage.js')).repository.read('live'));
  for(const key of ['prizes','records','ledger','session'])expect(after[key]).toEqual(before[key]);
- expect(await page.evaluate(()=>caches.keys())).toContain('bean-shell-v1.2.0');expect(await page.evaluate(()=>caches.keys())).not.toContain('bean-shell-v1.0.0');
+ expect(await page.evaluate(()=>caches.keys())).toContain('bean-shell-v1.3.0');expect(await page.evaluate(()=>caches.keys())).not.toContain('bean-shell-v1.0.0');
  await context.setOffline(true);await page.goto('/?old-installed-launch');await expect(page.locator('#next-customer')).toBeVisible();
 });
 

@@ -32,7 +32,7 @@ try {
     $beanVersion = $beanMetadata.elements[0].versionName
     $beanArtifacts = Join-Path $beanSource 'artifacts/native'
     New-Item -ItemType Directory -Path $beanArtifacts -Force | Out-Null
-    $beanApk = Join-Path $beanArtifacts "buwuzhengdou-lucky-$beanVersion.apk"
+    $beanApk = Join-Path $beanArtifacts "buwuzhengdou-workbench-$beanVersion.apk"
     Copy-Item -LiteralPath (Join-Path $beanOutput $beanMetadata.elements[0].outputFile) -Destination $beanApk -Force
     Write-Output "Signed APK: $beanApk"
 } finally { Pop-Location }
