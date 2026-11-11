@@ -24,8 +24,8 @@ test('budget category and todo UI, purchase impacts another book, confirmation d
  await nav(page,'data');await page.locator('#export-data').click();const state=await read(page);expect(state.workbench.books).toHaveLength(2);
 });
 test('Chinese is default on English tablet, system language can switch and persist without changing user content',async({browser})=>{
- const context=await browser.newContext({locale:'en-US'}),page=await context.newPage();await page.goto('/');await expect(page.locator('[data-page=income]')).toContainText('改日收入');await nav(page,'settings');await page.locator('#app-language').selectOption('system');await expect(page.locator('[data-page=income]')).toContainText('Daily income');await expect(page.locator('html')).toHaveAttribute('lang','en');
- await page.reload();await expect(page.locator('[data-page=budget]')).toContainText('Budget pool');await nav(page,'settings');await page.locator('#app-language').selectOption('zh-CN');await expect(page.locator('[data-page=income]')).toContainText('改日收入');await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');await context.close();
+ const context=await browser.newContext({locale:'en-US'}),page=await context.newPage();await page.goto('/');await expect(page.locator('[data-page=income]')).toContainText('每日收入');await nav(page,'settings');await page.locator('#app-language').selectOption('system');await expect(page.locator('[data-page=income]')).toContainText('Daily income');await expect(page.locator('html')).toHaveAttribute('lang','en');
+ await page.reload();await expect(page.locator('[data-page=budget]')).toContainText('Budget pool');await nav(page,'settings');await page.locator('#app-language').selectOption('zh-CN');await expect(page.locator('[data-page=income]')).toContainText('每日收入');await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');await context.close();
 });
 test('touch swipe reveals trash without opening edit dialog; cancel delete keeps record',async({browser})=>{
  const context=await browser.newContext({hasTouch:true,viewport:{width:412,height:915}}),page=await context.newPage();await page.goto('/');await income(page);
