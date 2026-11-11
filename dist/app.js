@@ -1,3 +1,4 @@
+import {installCopy} from './share.js';
 import {PRIZES,dateKey,counts,availability,pool,backup,validateBackup,weekKey,topupActive,cycleEnd} from './engine.js';
 import {repository,security} from './storage.js';
 import {createWorkbenchUI} from './workbench-ui.js';
@@ -16,7 +17,7 @@ const time=t=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-
 const n=v=>v===null?'不限':v;
 const symbols={折扣:'✧',立减:'◇',体验卡:'▰'};
 const names={draw:['幸运抽奖','LUCKY DRAW'],records:['今日中奖查询','LUCKY RECORDS'],inventory:['库存看板','PRIZE INVENTORY'],settings:['奖池设置','PRIZE SETTINGS'],data:['数据管理','DATA & BACKUP']};
-names.income=['每日收支','DAILY INCOME'];names.budget=['预算小池','BUDGET POOL'];
+names.income=['改日收入','DAILY INCOME'];names.budget=['预算小池','BUDGET POOL'];
 const workbenchUI=createWorkbenchUI({state:()=>state,mode:()=>mode,act,render,safe,formDialog,ask,toast,heading,dateKey,stamp,content});
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4500);}
 function closeModal(value){dialog.querySelectorAll('input[type=password]').forEach(input=>input.value='');dialog.close();const resolve=modalResolve;modalResolve=null;resolve?.(value);}
@@ -279,3 +280,4 @@ async function initialize(){
 }
 initialize();
 watchLanguage();
+installCopy({state:()=>state,act,safe,toast,content});

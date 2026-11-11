@@ -124,6 +124,10 @@ public class MainActivity extends Activity {
     private void toast(String text) { runOnUiThread(()->Toast.makeText(this,text,Toast.LENGTH_LONG).show()); }
 
     public final class BackupBridge {
+        @JavascriptInterface public void copyText(String text) {
+            if(text==null||text.length()>200000)return;
+            runOnUiThread(()->{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("不务正豆工作台",text));});
+        }
         @JavascriptInterface public String systemLanguage() { return android.content.res.Resources.getSystem().getConfiguration().getLocales().get(0).toLanguageTag(); }
         @JavascriptInterface public void setLanguage(String choice) {
             if(!"zh-CN".equals(choice)&&!"system".equals(choice))return;

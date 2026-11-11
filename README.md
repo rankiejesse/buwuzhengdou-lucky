@@ -4,7 +4,7 @@
 
 ## 安装使用
 
-- [独立安卓APK v1.3.1](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.3.1/buwuzhengdou-workbench-1.3.1.apk)
+- [独立安卓APK v1.3.2](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.3.2/buwuzhengdou-workbench-1.3.2.apk)
 - [安卓安装、升级与迁移说明](安卓应用使用说明.md)
 - [网页版](https://rankiejesse.github.io/buwuzhengdou-lucky/)
 - [浏览器兼容入口](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)
@@ -12,6 +12,14 @@
 APK桌面名称为“不务正豆工作台”，资源内置，首次启动即可离线，不依赖Chrome安装壳。由1.1.0升级时直接覆盖安装，保持同一应用和签名，不要先卸载。网页和APK分别保存自己的数据，跨环境请用JSON迁移。
 
 PWA首次联网加载，等待“离线已就绪”后可从安卓Chrome安装。若Chrome安装版在系统图标处停留，可改用独立APK或浏览器兼容入口；原启动壳故障尚无该设备的确切诊断。
+
+## App v1.3.2 备注、类别折叠与复制
+
+只发布APK，不部署网页。入口更名“改日收入”；备注默认空白，自定义快捷气泡可增删，也能自由输入。备注、气泡及复制偏好随完整JSON备份迁移。
+
+预算类别在标题行展开/收起，长列表标题吸顶，保留添加待办按钮。手机窄屏标题行可横向滑动访问全部操作。
+
+收入总览/单条收入、预算总览/本子/类别/待办、当次抽奖、中奖查询及库存均有复制入口。设置可逐项开关金额总开关、各现金及线上收入字段、拟购/实际金额、余额、备注、时间、状态、明细、预算来源、汇总与名称。不会复制密码及安全问题。
 
 ## App v1.3.1 操作优化
 

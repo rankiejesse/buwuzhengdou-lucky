@@ -104,7 +104,8 @@ public class OfflineAppTest {
         assertEquals("zh",activity.getResources().getConfiguration().getLocales().get(0).getLanguage());
         tap("[data-page=income]");tap("#register-income");waitJS("!!document.querySelector('#cash-initial')");
         assertEquals("",eval("document.querySelector('#cash-initial').value"));assertEquals("0.00",eval("document.querySelector('#cash-initial').placeholder"));
-        eval("document.querySelector('#cash-initial').value='100';document.querySelector('#cash-remaining').value='200';document.querySelector('#income-wechat').value='600'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        eval("document.querySelector('#cash-initial').value='100';document.querySelector('#cash-remaining').value='200';document.querySelector('#income-wechat').value='600';document.querySelector('#income-note').value='安卓备注'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        assertEquals("安卓备注",state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getString("note"));
         String first=state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getString("registeredAt");
         tap("#register-income");waitJS("document.querySelector('dialog').open && !!document.querySelector('#cash-remaining')");eval("document.querySelector('#cash-remaining').value='201'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
         assertEquals(first,state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getString("registeredAt"));
@@ -114,6 +115,7 @@ public class OfflineAppTest {
         assertTrue(String.valueOf(eval("document.querySelector('.money-grid').textContent")).contains("420.00"));
         tap("[data-toggle-item]");waitJS("!document.querySelector('[data-toggle-item]').checked");assertEquals(Boolean.FALSE,eval("document.querySelector('dialog').open"));
         tap("[data-toggle-item]");waitJS("document.querySelector('[data-toggle-item]').checked && !document.querySelector('[data-toggle-item]').disabled");assertEquals(Boolean.FALSE,eval("document.querySelector('dialog').open"));
+        tap(".todo-row .copy-action");waitJS("document.querySelector('#toast').textContent.includes('已复制')");scenario.onActivity(a->{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)a.getSystemService(android.content.Context.CLIPBOARD_SERVICE);assertTrue(clipboard.getPrimaryClip().getItemAt(0).getText().toString().contains("豆子"));});
         tap("[data-edit-item]");waitJS("document.querySelector('dialog').open && !!document.querySelector('#item-actual')");assertEquals("80.00",eval("document.querySelector('#item-actual').value"));tap("#owner-cancel");
         scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");
         assertEquals(1,state().getJSONObject("workbench").getJSONArray("books").length());assertEquals(20100,state().getJSONObject("workbench").getJSONArray("incomes").getJSONObject(0).getInt("remaining"));
