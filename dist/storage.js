@@ -15,7 +15,7 @@ export async function openStore(){
   if(connection)return connection;
   connection=await new Promise((resolve,reject)=>{
     // Close older clients: their lottery-only clear does not preserve workbench data.
-    const r=indexedDB.open(DB_NAME,4);
+    const r=indexedDB.open(DB_NAME,5);
     r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('states'))r.result.createObjectStore('states');};
     r.onerror=()=>reject(r.error);r.onblocked=()=>reject(Error('请关闭其他旧版本页面后重试'));
     r.onsuccess=()=>{r.result.onversionchange=()=>{r.result.close();connection=null;};resolve(r.result);};

@@ -21,7 +21,7 @@ const names={draw:['幸运抽奖','LUCKY DRAW'],records:['今日中奖查询','L
 names.members=['会员管理','MEMBERS'];
 names.income=['每日收入','DAILY INCOME'];names.budget=['预算小池','BUDGET POOL'];
 const workbenchUI=createWorkbenchUI({state:()=>state,mode:()=>mode,act,render,safe,formDialog,ask,toast,heading,dateKey,stamp,content});
-const memberUI=createMemberUI({state:()=>state,staff:()=>staff,mode:()=>mode,act,safe,formDialog,toast,heading,stamp,content});
+const memberUI=createMemberUI({state:()=>state,staff:()=>staff,mode:()=>mode,act,safe,formDialog,ask,toast,heading,stamp,content});
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4500);}
 function closeModal(value){dialog.querySelectorAll('input[type=password]').forEach(input=>input.value='');dialog.close();const resolve=modalResolve;modalResolve=null;resolve?.(value);}
 function ask(title,message,{danger=false,label='确认',typed=false}={}){

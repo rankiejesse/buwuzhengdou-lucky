@@ -4,7 +4,7 @@
 
 ## 安装使用
 
-- [独立安卓APK v1.4.1](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.4.1/buwuzhengdou-workbench-1.4.1.apk)
+- [独立安卓APK v1.5.0](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.5.0/buwuzhengdou-workbench-1.5.0.apk)
 - [安卓安装、升级与迁移说明](安卓应用使用说明.md)
 - [网页版](https://rankiejesse.github.io/buwuzhengdou-lucky/)
 - [浏览器兼容入口](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)
@@ -12,6 +12,16 @@
 APK桌面名称为“不务正豆工作台”，资源内置，首次启动即可离线，不依赖Chrome安装壳。由1.1.0升级时直接覆盖安装，保持同一应用和签名，不要先卸载。网页和APK分别保存自己的数据，跨环境请用JSON迁移。
 
 PWA首次联网加载，等待“离线已就绪”后可从安卓Chrome安装。若Chrome安装版在系统图标处停留，可改用独立APK或浏览器兼容入口；原启动壳故障尚无该设备的确切诊断。
+
+## App v1.5.0 实付／赠金余额、退款与会员删除
+
+消费按实付优先、不足再扣赠金。详情显示总可用、实付、赠金及按本店规则计算的可退金额（实付余额）。原充值消费流水可完整重放拆分，不改变总余额；消费明细展示两种资金各扣多少。
+
+店员登记退款，退清当前实付余额并清空全部赠金；需勾选确认已线下实际退还，App不自动转账。只有赠金时可登记0元退款并清空赠金。保存时检查退款金额仍等于当前实付／赠金，变化则拒绝，避免旧窗口误退；同交易ID不重复记账。
+
+删除会员需二次确认：有余额时先核对退款／清零并原子归档；零余额直接确认归档。会员退出正常搜索，历史充值／消费／退款在“已删除会员”中只读保留并随JSON导出；归档不能再充值或消费。同号之后可重新开户，旧流水仍独立保留。清除抽奖数据不会删除退款记录。
+
+数据库升级至版本5，拒绝旧客户端继续操作退款流水。网页不更新。
 
 ## App v1.4.1 紧凑预算与操作优化
 

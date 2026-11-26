@@ -89,6 +89,16 @@ public class OfflineAppTest {
         tap("#start-draw");waitJS("!!document.querySelector('#abandon')");tap("#abandon");tap("#ok-modal");waitJS("!!document.querySelector('#next-customer')");tap("#next-customer");tap("#ok-modal");waitJS("!!document.querySelector('#start-draw')");assertEquals(1,state().getJSONArray("records").length());
     }
 
+
+    @Test public void refundPaidBalanceClearsGiftAndArchivesMemberOffline() throws Exception {
+        tap("#role-switch");waitJS("!!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='2468'");tap("#owner-submit");waitJS("!document.querySelector('[data-page=members]').hidden");
+        tap("[data-page=members]");tap("#member-create");waitJS("document.querySelector('dialog').open");eval("document.querySelector('#member-name').value='退款会员';document.querySelector('#member-phone').value='13800001234';document.querySelector('#member-amount').value='100';document.querySelector('#member-amount').dispatchEvent(new Event('input',{bubbles:true}))");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        tap("#member-spend");waitJS("document.querySelector('dialog').open");eval("document.querySelector('#member-amount').value='30'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");assertTrue(String.valueOf(eval("document.querySelector('.refundable-metric').textContent")).contains("70.00"));
+        tap("#member-refund");waitJS("!!document.querySelector('#refund-confirm')");tap("#refund-confirm");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");assertTrue(String.valueOf(eval("document.querySelector('.refundable-metric').textContent")).contains("0.00"));
+        tap("#member-delete");tap("#ok-modal");waitJS("!!document.querySelector('#member-search')");tap("#member-archive");waitJS("!!document.querySelector('[data-member]')");tap("[data-member]");assertEquals(Boolean.TRUE,eval("document.querySelector('#member-recharge').closest('.action-row').hidden"));assertEquals("refund",state().getJSONArray("members").getJSONObject(0).getJSONArray("transactions").getJSONObject(2).getString("type"));
+        scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");assertTrue(state().getJSONArray("members").getJSONObject(0).has("deletedAt"));
+    }
+
     @Test public void coldOfflineStartAndClaimPersistAfterActivityRecreation() throws Exception {
         PackageInfo info=activity.getPackageManager().getPackageInfo(activity.getPackageName(),android.content.pm.PackageManager.GET_PERMISSIONS);
         assertFalse(info.requestedPermissions!=null&&Arrays.asList(info.requestedPermissions).contains("android.permission.INTERNET"));
