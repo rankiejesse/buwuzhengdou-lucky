@@ -1,3 +1,4 @@
+import {memberCommand,validateMembers} from './members.js';
 import {workbenchCommand,validateWorkbench} from './workbench.js';
 // Pure domain layer. The repository applies each command inside one IndexedDB transaction.
 export const PRIZES = [
@@ -108,7 +109,7 @@ export function command(state, cmd, now=Date.now(), random=()=>crypto.getRandomV
       topup.cancelledAt=at;audit('cancelTopup',{id:topup.id});break;
     }
     case 'clearRecords':pending(s);audit('clearRecords',{removed:s.records.length});s.records=[];break;
-    default:if(cmd.type.startsWith('workbench:')){if(cmd.expectedRevision!==undefined&&cmd.expectedRevision!==s.revision)throw Error('数据已在其他页面变化，请关闭窗口后重新编辑');s.workbench=workbenchCommand(s.workbench,{...cmd,type:cmd.type.slice(10)},now,uuid);break;}throw Error('未知操作');
+    default:if(cmd.type.startsWith('member:')){s.members=memberCommand(s.members,{...cmd,type:cmd.type.slice(7)},now);break;}if(cmd.type.startsWith('workbench:')){if(cmd.expectedRevision!==undefined&&cmd.expectedRevision!==s.revision)throw Error('数据已在其他页面变化，请关闭窗口后重新编辑');s.workbench=workbenchCommand(s.workbench,{...cmd,type:cmd.type.slice(10)},now,uuid);break;}throw Error('未知操作');
   }
   s.revision++;s.updatedAt=at;return {state:s,result};
 }
@@ -118,6 +119,7 @@ export function validateBackup(input) {
   if(!input.state||input.state.schema!==input.version)throw Error('备份版本与数据版本不一致');
   const s=input.state.schema===1?migrateState(input.state):structuredClone(input.state);validatePrizes(s.prizes);
   if(s.workbench!==undefined)validateWorkbench(s.workbench);
+  if(s.members!==undefined)validateMembers(s.members);
   for(const k of ['records','ledger','audit'])if(!Array.isArray(s[k]))throw Error('备份缺少完整记录');
   for(const k of ['revision','settingsRevision'])if(!Number.isSafeInteger(s[k])||s[k]<0)throw Error('版本号无效');
   if(!validTime(s.updatedAt))throw Error('更新时间无效');
@@ -145,5 +147,6 @@ export function backup(state){return {format:'buwuzhengdou-backup',version:2,exp
 export function clearBusiness(state,now=Date.now()) {
   const old=migrateState(state,now),s=fresh(now);s.prizes=structuredClone(old.prizes);s.revision=old.revision+1;s.settingsRevision=old.settingsRevision+1;
   if(old.workbench)s.workbench=structuredClone(old.workbench);
+  if(old.members)s.members=structuredClone(old.members);
   s.audit.push({id:crypto.randomUUID(),at:s.updatedAt,type:'clearData',detail:{removedRecords:old.records.length,removedLedger:old.ledger.length,removedTopups:old.topups.length}});return s;
 }

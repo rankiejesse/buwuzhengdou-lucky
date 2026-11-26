@@ -4,7 +4,7 @@
 
 ## 安装使用
 
-- [独立安卓APK v1.3.2](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.3.2/buwuzhengdou-workbench-1.3.2.apk)
+- [独立安卓APK v1.4.0](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.4.0/buwuzhengdou-workbench-1.4.0.apk)
 - [安卓安装、升级与迁移说明](安卓应用使用说明.md)
 - [网页版](https://rankiejesse.github.io/buwuzhengdou-lucky/)
 - [浏览器兼容入口](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)
@@ -12,6 +12,16 @@
 APK桌面名称为“不务正豆工作台”，资源内置，首次启动即可离线，不依赖Chrome安装壳。由1.1.0升级时直接覆盖安装，保持同一应用和签名，不要先卸载。网页和APK分别保存自己的数据，跨环境请用JSON迁移。
 
 PWA首次联网加载，等待“离线已就绪”后可从安卓Chrome安装。若Chrome安装版在系统图标处停留，可改用独立APK或浏览器兼容入口；原启动壳故障尚无该设备的确切诊断。
+
+## App v1.4.0 会员与顾客／店员权限
+
+只发布App，网页保持原版。顶部👤顾客／🧑‍🍳店员切换，进入店员模式输入一次密码，退出不需密码；应用重启默认顾客。顾客仅使用抽奖，交接下一位以及会员、收入、预算、库存与设置由店员操作。取消各功能独立密码弹窗。授权只在本次运行内存中，事务重新检查权限；IndexedDB版本4阻止旧代码继续操作。
+
+会员记录姓名、完整号码与充值／赠送／消费流水，余额由流水计算。首充30元起，续充10元起，默认赠送10%可手动改，余额不足拒绝消费。相同手机号不能重复开户，重复提交同一交易不重复入账。姓名、完整号码或尾号实时搜索；数字搜索先尾号匹配，再号码其他位置匹配，直接点结果进入详情。
+
+设置可选择四位数字、六位数字或4至64位混合密码；保留前导零，旧密码及安全问题继续有效。会员及交易进入完整JSON备份；清除抽奖数据保留会员；导入是整份替换，旧备份没有的模块会被清空，需先备份。
+
+预算类别的添加待办与展开／收起移到类别区域右下角，收起后按钮仍可操作。
 
 ## App v1.3.2 备注、类别折叠与复制
 

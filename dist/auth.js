@@ -1,7 +1,7 @@
 const ITERATIONS=600000;
 const hex=bytes=>Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
 const unhex=text=>Uint8Array.from(text.match(/../g)||[],c=>parseInt(c,16));
-export function validatePassword(value){if(typeof value!=='string'||value.length<4||value.length>64)throw Error('密码长度应为4至64位');}
+export function validatePassword(value,kind='mixed'){if(!['pin4','pin6','mixed'].includes(kind))throw Error('请选择密码类型');if(kind==='pin4'&&!/^\d{4}$/.test(value))throw Error('请输入四位数字密码');if(kind==='pin6'&&!/^\d{6}$/.test(value))throw Error('请输入六位数字密码');if(typeof value!=='string'||value.length<4||value.length>64)throw Error('密码长度应为4至64位');}
 const normalized=value=>String(value).normalize('NFKC').trim().toLowerCase();
 export async function hashSecret(value,answer=false){
   const salt=hex(crypto.getRandomValues(new Uint8Array(16)));

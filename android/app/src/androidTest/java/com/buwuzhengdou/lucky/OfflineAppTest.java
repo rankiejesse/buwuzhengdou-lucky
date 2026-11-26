@@ -24,7 +24,7 @@ public class OfflineAppTest {
         device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(a->activity=a);
         waitJS("window.__beanStarted === true");
-        async("const r=await import('./storage.js');const e=await import('./engine.js');await r.transact('live',()=>({state:e.fresh()}));await r.repository.resetSandbox();const db=await r.openStore();await new Promise((resolve,reject)=>{const tx=db.transaction('states','readwrite');tx.objectStore('states').delete('__owner_security');tx.oncomplete=resolve;tx.onabort=reject;});await r.security.setup('2468',[{question:'测试问题',answer:'豆'}]);sessionStorage.setItem('bean-mode','live');return true;");
+        async("const r=await import('./storage.js');const e=await import('./engine.js');await r.transact('live',()=>({state:e.fresh()}));const db=await r.openStore();await new Promise((resolve,reject)=>{const tx=db.transaction('states','readwrite');tx.objectStore('states').delete('__owner_security');tx.oncomplete=resolve;tx.onabort=reject;});await r.security.setup('2468',[{question:'测试问题',answer:'豆'}]);await r.security.enterStaff('2468');await r.repository.resetSandbox();r.security.exitStaff();sessionStorage.setItem('bean-mode','live');return true;");
         reload();
     }
     @After public void close(){if(scenario!=null)scenario.close();}
@@ -47,7 +47,7 @@ public class OfflineAppTest {
         waitJS("window.__nativeTest && window.__nativeTest.done === true");
         JSONObject result=(JSONObject)eval("window.__nativeTest");assertFalse(result.optString("error"),result.has("error"));return result.opt("value");
     }
-    JSONObject state() throws Exception {return (JSONObject)async("return (await import('./storage.js')).repository.read('live');");}
+    JSONObject state() throws Exception {return (JSONObject)async("return (await import('./storage.js')).transact('live',state=>({state}));");}
     void reload() throws Exception {
         eval("window.__beanStarted=false");scenario.onActivity(a->a.webView.reload());waitJS("window.__beanStarted===true");
     }
@@ -66,6 +66,20 @@ public class OfflineAppTest {
     }
     void claim() throws Exception {tap("#start-draw");waitJS("!!document.querySelector('#claim')");tap("#claim");waitJS("!!document.querySelector('#next-customer')");}
     void dataPage() throws Exception {tap("[data-page=data]");waitJS("!!document.querySelector('#export-data')");}
+
+
+    @Test public void membersAndStaffModeOffline() throws Exception {
+        assertEquals(Boolean.TRUE,eval("document.querySelector('[data-page=members]').hidden"));
+        tap("#role-switch");waitJS("!!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='2468'");tap("#owner-submit");waitJS("!document.querySelector('[data-page=members]').hidden");
+        tap("[data-page=members]");tap("#member-create");waitJS("!!document.querySelector('#member-name')");
+        eval("document.querySelector('#member-name').value='安卓会员';document.querySelector('#member-phone').value='13800001234';document.querySelector('#member-amount').value='30';document.querySelector('#member-amount').dispatchEvent(new Event('input',{bubbles:true}))");assertEquals("3.00",eval("document.querySelector('#member-gift').value"));tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        tap("#member-recharge");waitJS("document.querySelector('dialog').open");eval("document.querySelector('#member-amount').value='10';document.querySelector('#member-amount').dispatchEvent(new Event('input',{bubbles:true}))");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        tap("#member-spend");waitJS("document.querySelector('dialog').open");eval("document.querySelector('#member-amount').value='5'");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");assertTrue(String.valueOf(eval("document.querySelector('.money-grid').textContent")).contains("39.00"));
+        tap("#member-back");eval("document.querySelector('#member-search').value='1234';document.querySelector('#member-search').dispatchEvent(new Event('input',{bubbles:true}))");waitJS("!!document.querySelector('[data-member]')");tap("[data-member]");assertEquals(3,state().getJSONArray("members").getJSONObject(0).getJSONArray("transactions").length());
+        scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");assertEquals(Boolean.TRUE,eval("document.querySelector('[data-page=members]').hidden"));
+        tap("#role-switch");waitJS("!!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='2468'");tap("#owner-submit");waitJS("!document.querySelector('[data-page=members]').hidden");assertEquals(3,state().getJSONArray("members").getJSONObject(0).getJSONArray("transactions").length());
+        tap("#role-switch");waitJS("document.querySelector('[data-page=members]').hidden");
+    }
 
     @Test public void coldOfflineStartAndClaimPersistAfterActivityRecreation() throws Exception {
         PackageInfo info=activity.getPackageManager().getPackageInfo(activity.getPackageName(),android.content.pm.PackageManager.GET_PERMISSIONS);
