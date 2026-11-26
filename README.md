@@ -4,7 +4,7 @@
 
 ## 安装使用
 
-- [独立安卓APK v1.4.0](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.4.0/buwuzhengdou-workbench-1.4.0.apk)
+- [独立安卓APK v1.4.1](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.4.1/buwuzhengdou-workbench-1.4.1.apk)
 - [安卓安装、升级与迁移说明](安卓应用使用说明.md)
 - [网页版](https://rankiejesse.github.io/buwuzhengdou-lucky/)
 - [浏览器兼容入口](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)
@@ -12,6 +12,14 @@
 APK桌面名称为“不务正豆工作台”，资源内置，首次启动即可离线，不依赖Chrome安装壳。由1.1.0升级时直接覆盖安装，保持同一应用和签名，不要先卸载。网页和APK分别保存自己的数据，跨环境请用JSON迁移。
 
 PWA首次联网加载，等待“离线已就绪”后可从安卓Chrome安装。若Chrome安装版在系统图标处停留，可改用独立APK或浏览器兼容入口；原启动壳故障尚无该设备的确切诊断。
+
+## App v1.4.1 紧凑预算与操作优化
+
+- 预算页缩小卡片、待办和按钮间距；计算说明默认折叠，平板五项金额同一行，手机三列，减少滚动。
+- 复制设置精简为时间、详细明细、备注、完成状态四个开关；名称、金额、余额和汇总固定保留，旧版隐藏金额开关不再生效。
+- 新默认概率为9折21%、8折15%、7折10%、6折5%、5折2%、减3元5%、减2元15%、减1元25%、时段卡1.5%、全天卡0.5%，合计100%。旧默认概率自动更新且保留库存／历史，自定义概率保留；首次运行与恢复默认也使用新值。
+- 会员实时搜索匹配文字用黄色底色、加粗和下划线突出。
+- 顾客模式领取或放弃后，可确认交接下一位，不需要店员密码。每位顾客次数仍由现场监督。
 
 ## App v1.4.0 会员与顾客／店员权限
 

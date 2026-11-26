@@ -2,8 +2,8 @@ import {memberCommand,validateMembers} from './members.js';
 import {workbenchCommand,validateWorkbench} from './workbench.js';
 // Pure domain layer. The repository applies each command inside one IndexedDB transaction.
 export const PRIZES = [
-  ['p09','9折','折扣',20], ['p08','8折','折扣',10], ['p07','7折','折扣',5],
-  ['p06','6折','折扣',16], ['p05','5折','折扣',2], ['m03','减3元','立减',5],
+  ['p09','9折','折扣',21], ['p08','8折','折扣',15], ['p07','7折','折扣',10],
+  ['p06','6折','折扣',5], ['p05','5折','折扣',2], ['m03','减3元','立减',5],
   ['m02','减2元','立减',15], ['m01','减1元','立减',25],
   ['slot','时段卡一张','体验卡',1.5], ['day','全天卡一张','体验卡',0.5]
 ].map(([id,name,category,probability])=>({id,name,category,probability,weekly:null,monthly:null,daily:null}));
@@ -13,7 +13,7 @@ export function dateKey(time = Date.now()) {
   return ['year','month','day'].map(k=>p.find(x=>x.type===k).value).join('-');
 }
 export function fresh(now = Date.now()) {
-  return {schema:2,revision:0,settingsRevision:0,updatedAt:new Date(now).toISOString(),prizes:structuredClone(PRIZES),records:[],ledger:[],audit:[],topups:[],session:null};
+  return {schema:2,probabilityDefaultsVersion:2,revision:0,settingsRevision:0,updatedAt:new Date(now).toISOString(),prizes:structuredClone(PRIZES),records:[],ledger:[],audit:[],topups:[],session:null};
 }
 export function weekKey(now=Date.now()) {
   const d=new Date(dateKey(now)+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-(d.getUTCDay()+6)%7);return d.toISOString().slice(0,10);
@@ -24,7 +24,14 @@ export function cycleEnd(period,now=Date.now()) {
   throw Error('补货周期只能选择本周或本月');
 }
 export function migrateState(input,now=Date.now()) {
-  if(input.schema===2)return input;
+  if(input.schema===2){
+    if(input.probabilityDefaultsVersion===2)return input;
+    const s=structuredClone(input),previous=[20,10,5,16,2,5,15,25,1.5,0.5];
+    const unchanged=s.prizes.length===10&&PRIZES.every((p,i)=>s.prizes.find(x=>x.id===p.id)?.probability===previous[i]);
+    s.probabilityDefaultsVersion=2;
+    if(unchanged){s.prizes=s.prizes.map(p=>({...p,probability:PRIZES.find(x=>x.id===p.id).probability}));s.settingsRevision++;s.revision++;s.updatedAt=new Date(now).toISOString();s.audit.push({id:crypto.randomUUID(),at:s.updatedAt,type:'settings',detail:{reason:'更新默认概率，保留库存及历史'}});}
+    return s;
+  }
   if(input.schema!==1)throw Error('不支持的数据版本，请使用更新版本应用');
   const s=structuredClone(input);
   s.prizes=s.prizes.map(({total,...p})=>({...p,weekly:total}));validatePrizes(s.prizes);

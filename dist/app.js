@@ -92,6 +92,7 @@ function bindOwnerCard(){
   if($('#reset-password'))$('#reset-password').onclick=()=>safe(()=>manageSecurity('reset'));
 }
 function render(){
+  content.classList.toggle('budget-compact',page==='budget');
   if(!staff&&page!=='draw')page='draw';
   document.querySelectorAll('[data-page]').forEach(b=>b.hidden=!staff&&b.dataset.page!=='draw');
   $('#role-switch').innerHTML=staff?'🧑‍🍳 <span>店员</span>':'👤 <span>顾客</span>';
@@ -102,7 +103,7 @@ function render(){
   $('#top-title').textContent=names[page][0];$('.top-subtitle').textContent=' / '+names[page][1];
   $('#today-label').textContent=dateKey().split('-').join(' . ');
   ({draw:renderDraw,records:renderRecords,inventory:renderInventory,settings:renderSettings,data:renderData,income:workbenchUI.renderIncome,budget:workbenchUI.renderBudget,members:memberUI.render})[page]();
-  if($('#next-customer'))$('#next-customer').disabled=!staff;
+
 }
 function renderDraw(){
   const active=pool(state), session=state.session, settled=session&&session.status!=='pending';
@@ -112,7 +113,7 @@ function renderDraw(){
       <span class="deco d1" aria-hidden="true">✦</span><span class="deco d2" aria-hidden="true">✧</span><span class="deco d3" aria-hidden="true">+</span><span class="deco d4" aria-hidden="true">+</span>
       <p class="arcade-title">好运扭一扭</p><div class="arcade-sub">A LITTLE BEAN OF LUCK</div>
       <div class="machine" aria-hidden="true"><div class="machine-top">LUCKY</div><div class="machine-body"><div class="reels"><span class="reel">✦</span><span class="reel">豆</span><span class="reel">✦</span></div><div class="machine-slot"></div></div><div class="machine-feet"><i></i><i></i></div><div class="machine-handle"></div></div>
-      ${settled?`<div class="result-state">${session.status==='claimed'?'领取成功 · '+esc(session.name):'本次抽奖已放弃'}<small>${session.status==='claimed'?'好运已收好，祝你玩得开心！':'本次资格已作废，不发奖、不扣库存。'}</small></div><button id="next-customer" class="start-button settled-button">店员操作 · 下一位顾客 →</button><p class="owner-hint">请店员确认已交接下一位顾客，再继续抽奖</p>`:`<button id="start-draw" class="start-button" ${!active.length&&!session?'disabled':''}>${session?'查看中奖结果':active.length?'开始抽奖':'奖池暂时休息'}<span>➜</span></button><p class="arcade-hint">${active.length?'每位顾客一次机会 · 请由店员现场监督':'所有奖项均已暂停，请店员补充库存或调整概率'}</p>`}
+      ${settled?`<div class="result-state">${session.status==='claimed'?'领取成功 · '+esc(session.name):'本次抽奖已放弃'}<small>${session.status==='claimed'?'好运已收好，祝你玩得开心！':'本次资格已作废，不发奖、不扣库存。'}</small></div><button id="next-customer" class="start-button settled-button">下一位顾客 →</button><p class="owner-hint">请确认已交接下一位顾客，每位顾客一次机会</p>`:`<button id="start-draw" class="start-button" ${!active.length&&!session?'disabled':''}>${session?'查看中奖结果':active.length?'开始抽奖':'奖池暂时休息'}<span>➜</span></button><p class="arcade-hint">${active.length?'每位顾客一次机会 · 请由店员现场监督':'所有奖项均已暂停，请店员补充库存或调整概率'}</p>`}
       </div><div class="arcade-bottom"><span><b>✧</b> 十种小幸运</span><span><b>♡</b> 快乐不落空</span><span><b>▣</b> 无需登录</span></div></section>
       <div class="side-stack"><section class="card"><div class="card-heading"><h2>今日好运速报</h2><span class="card-label">TODAY</span></div><div class="stats-grid"><div><div class="stat-number">${todayRows().length}<small>份</small></div><div class="stat-label">今日已领取</div></div><div><div class="stat-number">${active.length}<small>/ 10</small></div><div class="stat-label">当前可抽奖项</div></div></div><div class="stat-foot"><span>●</span> &nbsp; ${active.length?'好运已就位，等你来开启':'请店员补充奖池'}${mode==='sandbox'?' · 测试数据':''}</div></section>
       <section class="card rules"><div class="card-heading"><h2>抽奖小约定</h2><span class="card-label">HOW TO PLAY</span></div><div class="rule"><span class="rule-num">01</span><span>点击开始抽奖，等待好运揭晓。</span></div><div class="rule"><span class="rule-num">02</span><span>抽中后确认领取，奖品才会正式发放。</span></div><div class="rule"><span class="rule-num">03</span><span>放弃即用完本次机会，不能重新抽奖。</span></div><p class="rules-note">折扣与立减仅限体验费，不折现、不找零，且不与其他优惠叠加。</p></section></div></div>

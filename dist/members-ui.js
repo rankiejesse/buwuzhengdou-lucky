@@ -3,6 +3,7 @@ import {moneyInput} from './workbench.js';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'¥'+(n/100).toFixed(2),$=s=>document.querySelector(s);
 const field=(id,label,props='')=>`<label class="field owner-field">${label}<input id="${id}" ${props}></label>`;
+const highlight=(text,query)=>{const q=query.trim().toLowerCase();if(!q)return esc(text);let out='',start=0,index;while((index=text.toLowerCase().indexOf(q,start))!==-1){out+=esc(text.slice(start,index))+'<mark class="search-match">'+esc(text.slice(index,index+q.length))+'</mark>';start=index+q.length;}return out+esc(text.slice(start));};
 const amount=id=>moneyInput($(id).value||'0');
 export function createMemberUI(ctx){let selected=null,query='';
  async function edit(member){const create=!member,transactionId=crypto.randomUUID(),id=member?.id||crypto.randomUUID();
@@ -23,7 +24,7 @@ export function createMemberUI(ctx){let selected=null,query='';
  `<section class="card"><label class="field">实时搜索姓名、手机号码或尾号<input id="member-search" type="search" autocomplete="off" placeholder="输入即显示匹配结果" value="${esc(query)}"></label><p class="help">数字搜索优先展示手机尾号匹配，其次展示号码中间部分匹配。</p><div id="member-results"></div><p class="help">会员共 ${rows.length} 位，数据保存在本机，随完整JSON备份导出。</p></section>`);
  $('#member-create').onclick=()=>ctx.safe(()=>edit());
  if(m){$('#member-back').onclick=()=>{selected=null;render();};$('#member-edit').onclick=()=>ctx.safe(()=>edit(m));$('#member-recharge').onclick=()=>ctx.safe(()=>payment(m,'recharge'));$('#member-spend').onclick=()=>ctx.safe(()=>payment(m,'spend'));}
- else {const list=()=>{const matches=searchMembers(rows,query);$('#member-results').innerHTML=matches.map(m=>`<button class="member-result" data-member="${esc(m.id)}"><b data-user-text>${esc(m.name)}</b><span>${esc(m.phone)}</span></button>`).join('')||`<p class="empty">${query.trim()?'暂无匹配会员':'输入姓名、完整号码或尾号查找会员'}</p>`;document.querySelectorAll('[data-member]').forEach(b=>b.onclick=()=>{$('#member-search').blur();selected=b.dataset.member;render();});};$('#member-search').oninput=e=>{query=e.target.value;list();};list();}
+ else {const list=()=>{const matches=searchMembers(rows,query);$('#member-results').innerHTML=matches.map(m=>`<button class="member-result" data-member="${esc(m.id)}"><b data-user-text>${highlight(m.name,query)}</b><span data-user-text>${highlight(m.phone,query)}</span></button>`).join('')||`<p class="empty">${query.trim()?'暂无匹配会员':'输入姓名、完整号码或尾号查找会员'}</p>`;document.querySelectorAll('[data-member]').forEach(b=>b.onclick=()=>{$('#member-search').blur();selected=b.dataset.member;render();});};$('#member-search').oninput=e=>{query=e.target.value;list();};list();}
  }
  return {render};
 }

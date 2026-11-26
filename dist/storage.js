@@ -34,7 +34,7 @@ export async function transact(key, reducer, grant=null){
 }
 export const repository={
   read:key=>transact(key,state=>({state,result:staffGrant?state:{...state,members:undefined,workbench:undefined}}),staffGrant?requireStaff():null),
-  execute:(key,cmd)=>{const grant=['draw','claim','abandon'].includes(cmd.type)&&key==='live'?null:requireStaff();return transact(key,state=>command(state,{...cmd,test:key==='sandbox'}),grant);},
+  execute:(key,cmd)=>{const grant=['draw','claim','abandon','next'].includes(cmd.type)&&key==='live'?null:requireStaff();return transact(key,state=>command(state,{...cmd,test:key==='sandbox'}),grant);},
   replace:(key,input,authorization)=>transact(key,old=>{
     if(old.session?.status==='pending')throw Error('请先处理当前中奖结果');
     const state=validateBackup(input);state.revision=old.revision+1;state.settingsRevision=old.settingsRevision+1;state.updatedAt=new Date().toISOString();

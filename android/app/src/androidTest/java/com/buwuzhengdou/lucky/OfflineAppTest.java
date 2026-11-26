@@ -81,6 +81,14 @@ public class OfflineAppTest {
         tap("#role-switch");waitJS("document.querySelector('[data-page=members]').hidden");
     }
 
+
+    @Test public void guestCanHandOffWithoutStaffPassword() throws Exception {
+        assertEquals(Boolean.TRUE,eval("document.querySelector('[data-page=members]').hidden"));
+        claim();assertEquals(Boolean.FALSE,eval("document.querySelector('#next-customer').disabled"));tap("#next-customer");tap("#ok-modal");waitJS("!!document.querySelector('#start-draw')");
+        assertEquals(Boolean.TRUE,eval("document.querySelector('[data-page=members]').hidden"));assertEquals(1,state().getJSONArray("records").length());
+        tap("#start-draw");waitJS("!!document.querySelector('#abandon')");tap("#abandon");tap("#ok-modal");waitJS("!!document.querySelector('#next-customer')");tap("#next-customer");tap("#ok-modal");waitJS("!!document.querySelector('#start-draw')");assertEquals(1,state().getJSONArray("records").length());
+    }
+
     @Test public void coldOfflineStartAndClaimPersistAfterActivityRecreation() throws Exception {
         PackageInfo info=activity.getPackageManager().getPackageInfo(activity.getPackageName(),android.content.pm.PackageManager.GET_PERMISSIONS);
         assertFalse(info.requestedPermissions!=null&&Arrays.asList(info.requestedPermissions).contains("android.permission.INTERNET"));

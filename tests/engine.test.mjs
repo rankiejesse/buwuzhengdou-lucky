@@ -39,7 +39,7 @@ test('week/month/day simultaneous limits and calendar reset in Shanghai',()=>{
  assert.equal(counts(s,'day',nextMonth).total,4);
 });
 test('zero, null and probability normalization follow effective pool',()=>{
- let s=fresh(at);s.prizes[0].weekly=0;const p=pool(s,at);assert.equal(p.length,9);assert.ok(Math.abs(p.reduce((n,x)=>n+x.effective,0)-100)<1e-9);assert.equal(p.find(x=>x.id==='p08').effective,12.5);
+ let s=fresh(at);s.prizes[0].weekly=0;const p=pool(s,at);assert.equal(p.length,9);assert.ok(Math.abs(p.reduce((n,x)=>n+x.effective,0)-100)<1e-9);assert.equal(p.find(x=>x.id==='p08').effective,15/79*100);
  for(const prize of s.prizes){prize.daily=0;}assert.equal(pool(s,at).length,0);assert.throws(()=>run(s,{type:'draw'}));
 });
 test('claim rechecks inventory at time of redemption, does not partially write',()=>{

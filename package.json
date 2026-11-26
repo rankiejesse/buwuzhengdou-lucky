@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "test": "node --test tests/engine.test.mjs tests/auth.test.mjs tests/workbench.test.mjs tests/members.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/auth.test.mjs tests/workbench.test.mjs tests/members.test.mjs tests/refinements.test.mjs",
     "test:browser": "playwright test",
     "icons": "node scripts/icons.mjs",
     "build": "node scripts/build.mjs",
     "prestart": "npm run build",
     "pretest:browser": "npm run build",
-    "test:app": "npm run build && playwright test tests/browser/staff-members.spec.js"
+    "test:app": "npm run build && playwright test tests/browser/staff-members.spec.js tests/browser/refinements.spec.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
