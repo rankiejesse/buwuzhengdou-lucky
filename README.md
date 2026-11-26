@@ -4,7 +4,7 @@
 
 ## 安装使用
 
-- [独立安卓APK v1.5.0](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.5.0/buwuzhengdou-workbench-1.5.0.apk)
+- [独立安卓APK v1.6.0](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.6.0/buwuzhengdou-workbench-1.6.0.apk)
 - [安卓安装、升级与迁移说明](安卓应用使用说明.md)
 - [网页版](https://rankiejesse.github.io/buwuzhengdou-lucky/)
 - [浏览器兼容入口](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)
@@ -12,6 +12,18 @@
 APK桌面名称为“不务正豆工作台”，资源内置，首次启动即可离线，不依赖Chrome安装壳。由1.1.0升级时直接覆盖安装，保持同一应用和签名，不要先卸载。网页和APK分别保存自己的数据，跨环境请用JSON迁移。
 
 PWA首次联网加载，等待“离线已就绪”后可从安卓Chrome安装。若Chrome安装版在系统图标处停留，可改用独立APK或浏览器兼容入口；原启动壳故障尚无该设备的确切诊断。
+
+## App v1.6.0 会员余额布局与一年容量
+
+会员详情第一排并列突出“剩余可用、可退金额”，实付、赠金、累计充值、累计赠送缩小在下一排；退款／清空、删除位于卡片右下角。
+
+默认压缩导出JSON.gz，分块写入安卓保存窗口，兼容旧JSON导入。文件及解压后的JSON上限256MiB（原20MiB）；超限或损坏不替换本机数据。备份v3避免旧版误读库存汇总，v1/v2仍可导入。数据库版本6。
+
+会员（含退款／归档）、奖池配置、预算、收入不按时间淘汰。中奖查询按中奖时间只留最新20,000条，旧逐条库存流水汇总为每日每奖项计数，累计／周／月／日库存不返还、不重置。若设备实际出现QuotaExceededError，会原子重试只缩减查询到5000／100条，仍不足则拒绝本次保存，保留原业务数据；不靠删除账目腾空间。
+
+一年容量实测：10,000会员、366,000笔会员交易（含退款）、365天收入、50预算本25,000待办、365,000次抽奖。保留最新20,000查询，其余345,000按日汇总。未压缩约57.05MiB，gzip约1.52MiB，低于256MiB；Android模拟器实际系统文件导入→分块压缩导出→再导入通过，业务内容逐项对比一致。实际设备仍需有足够剩余空间；不是任意无限业务量的保证。
+
+重现容量检查：`node --expose-gc scripts/verify-year-capacity.mjs`。输出与报告位于忽略提交的artifacts/capacity目录。安卓大数据测试需先将生成文件推到模拟器Downloads/bean-one-year.json.gz，再运行compressedBackupThroughAndroidPickerAndRestore。
 
 ## App v1.5.0 实付／赠金余额、退款与会员删除
 

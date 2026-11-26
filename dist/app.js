@@ -1,3 +1,4 @@
+import {compactPrizeHistory,readBackupFile,exportBackupFile,bytesOf} from './capacity.js';
 import {createMemberUI} from './members-ui.js';
 import {installCopy} from './share.js';
 import {PRIZES,dateKey,counts,availability,pool,backup,validateBackup,weekKey,topupActive,cycleEnd} from './engine.js';
@@ -230,23 +231,21 @@ function renderData(){
   const disabled=mode==='sandbox'?'disabled':'';
   content.innerHTML=heading('把好运，好好保存',nativeApp?'数据保存在本应用中。迁移设备或卸载前，请先导出备份。':'数据只保存在当前设备、当前浏览器中。迁移设备前，请先导出备份。')+`
     ${mode==='sandbox'?'<div class="notice">测试模式下不可导入、清空或导出正式数据。请先退出测试模式。</div>':''}
-    <div class="data-grid"><section class="card data-card"><div class="data-icon">↗ ▣</div><h2>导出完整备份</h2><p>包含抽奖设置、中奖记录、库存流水、全部收入、预算小本及会员充值消费记录，保存为 JSON 文件。</p><button id="export-data" class="primary" ${disabled}>导出 JSON 备份 ↓</button></section>
-    <section class="card data-card"><div class="data-icon">▣ ↙</div><h2>导入已有备份</h2><p>检查文件内容后，整份替换本机正式数据。不会自动合并；请先备份当前数据。</p><button id="import-data" class="secondary" ${disabled}>选择 JSON 文件 ↑</button><input id="import-file" type="file" accept=".json,application/json" hidden></section>
+    <div class="data-grid"><section class="card data-card"><div class="data-icon">↗ ▣</div><h2>导出完整备份</h2><p>包含抽奖设置、中奖记录、库存流水、全部收入、预算小本及会员充值消费记录，自动压缩为JSON.gz文件；会员、收入、预算与奖池完整保留。</p><button id="export-data" class="primary" ${disabled}>导出压缩备份 ↓</button></section>
+    <section class="card data-card"><div class="data-icon">▣ ↙</div><h2>导入已有备份</h2><p>检查文件内容后，整份替换本机正式数据。不会自动合并；请先备份当前数据。</p><button id="import-data" class="secondary" ${disabled}>选择备份文件 ↑</button><input id="import-file" type="file" accept=".json,.gz,application/json,application/gzip" hidden></section>
     <section class="card data-card"><div class="data-icon">↺</div><h2>恢复默认奖池</h2><p>恢复十种默认概率、库存限制设为不限。保留历史中奖记录、库存流水与累计领取数量。</p><button id="data-defaults" class="secondary" ${disabled}>恢复默认奖池</button></section>
     <section class="card data-card"><div class="data-icon">⌫</div><h2>清空历史中奖记录</h2><p>仅清空中奖查询记录。库存流水继续保留，已消耗的库存不会返还。点击后确认一次即可。</p><button id="clear-records" class="danger" ${disabled}>清空历史记录</button></section></div>
-    <div class="notice purple">最后更新时间：${stamp(state.updatedAt)}<br>记录 ${state.records.length} 条 · 库存流水 ${state.ledger.length} 条 · 设置变更 ${state.audit.length} 条<br>本机数据不自动跨设备同步。导入旧备份会回滚库存，请勿将同一备份用于多台设备同时发奖。</div>
+    <div class="notice purple">最后更新时间：${stamp(state.updatedAt)}<br>记录 ${state.records.length} 条 · 库存流水 ${state.ledger.length} 条 · 设置变更 ${state.audit.length} 条<br>会员、收入、预算不按时间自动删除；中奖查询优先保留最新20,000条，库存历史按日汇总保留。已自动淘汰查询 ${state.retention?.droppedRecords||0} 条。<br>当前完整数据约 ${(bytesOf(JSON.stringify(backup(state,false)))/1024/1024).toFixed(1)} MB（未压缩），单次备份支持256MB。<br>本机数据不自动跨设备同步。导入旧备份会回滚库存，请勿将同一备份用于多台设备同时发奖。</div>
     <section class="card"><div class="card-heading"><h2>设备与离线使用</h2><button id="persist-storage" class="small-button" ${nativeApp?'hidden':''}>申请持久存储</button></div><p class="help" id="storage-state">正在检查本机存储…</p><p class="help">${nativeApp?'安卓应用已内置所有运行资源，首次打开即可离线使用。导出时选择系统文件保存位置；可导入原Chrome网页导出的JSON备份。网页与本应用的数据不会自动同步，迁移后请停止在旧网页同时发奖。卸载或清除应用数据会删除本机记录，请定期备份。':'安卓 Chrome：首次联网打开，等待右下角显示“离线已就绪”，再从浏览器菜单选择“添加到主屏幕 / 安装应用”。清除浏览器站点数据、卸载或设备损坏可能丢失本机数据，请定期导出备份。'}</p></section>
     <section class="card mode-card"><h2>最近库存与设置变化</h2>${[...state.ledger.map(r=>({at:r.at,text:`领取 ${PRIZES.find(p=>p.id===r.prizeId).name} · 库存 -1`})),...state.audit.map(r=>({at:r.at,text:({settings:'修改概率或库存配置',defaults:'恢复默认奖池',clearRecords:'清空中奖查询记录（库存未返还）',import:'导入并替换备份',migration:'旧总库存迁移为周库存',topup:'增加临时补货',cancelTopup:'撤销临时补货',clearData:'清除全部抽奖数据（保留配置和密码）'})[r.type]}))].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)).slice(0,20).map(r=>`<div class="audit-line">${stamp(r.at)} &nbsp; <b>${esc(r.text)}</b></div>`).join('')||'<p class="help">暂无变化，完整流水随 JSON 备份导出。</p>'}</section>`;
   $('#export-data').onclick=()=>safe(async()=>{
-    await reload();const json=JSON.stringify(backup(state),null,2),name=`不务正豆-完整备份-${dateKey()}-${Date.now()}.json`;
-    if(nativeApp){window.BeanAndroid.saveBackup(json,name);toast('请选择备份保存位置');return;}
-    const blob=new Blob([json],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);toast('备份已生成，请确认文件已保存到下载目录');
+    await reload();const snapshot=compactPrizeHistory(state),json=JSON.stringify(backup(snapshot,false)),name=`不务正豆-完整备份-${dateKey()}-${Date.now()}.json`;
+    toast('正在生成压缩备份，请稍候…');await exportBackupFile(json,name,nativeApp?window.BeanAndroid:null);toast(nativeApp?'请选择备份保存位置':'压缩备份已生成，请确认保存');
   });
   $('#import-data').onclick=()=>$('#import-file').click();
   $('#import-file').onchange=e=>safe(async()=>{
-    const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>20*1024*1024)throw Error('备份超过 20MB，请联系维护人员处理');
-    let input;try{input=JSON.parse(await file.text());}catch{throw Error('JSON 文件无法解析，请选择完整备份');}
-    const checked=validateBackup(input);
+    const file=e.target.files[0];e.target.value='';if(!file)return;toast('正在读取并检查备份，请稍候…');const input=await readBackupFile(file);
+    const checked=validateBackup(input,false);
     if(await ask('确认导入并替换本机数据？',`备份更新时间：${stamp(checked.updatedAt)}\n包含 ${checked.records.length} 条中奖记录、${checked.ledger.length} 条库存流水、${checked.workbench?.incomes.length||0} 条收入、${checked.workbench?.books.length||0} 个预算本、${checked.members?.length||0} 位会员。\n本机当前有 ${state.records.length} 条中奖记录。\n将覆盖抽奖、收入、预算及会员数据；旧版备份没有的新模块会被清空。无法自动合并。待领取抽奖不会恢复，请先导出当前备份。`,{danger:true,label:'确认替换数据'})){
       const authorization=await authorizeOwner('导入奖池与库存需要店员密码');if(!authorization)return;
       await repository.replace('live',input,authorization);await reload();channel?.postMessage({mode});draft=null;dirty=false;settingsToken=null;render();toast('导入成功，已替换本机数据');
@@ -256,7 +255,7 @@ function renderData(){
   $('#clear-records').onclick=()=>safe(async()=>{
     if(await ask('清空所有历史中奖记录？',`将删除 ${state.records.length} 条中奖查询记录。库存流水保留，不返还库存。建议先导出备份。`,{danger:true,label:'确认清空'})){await act({type:'clearRecords'});render();toast('中奖查询记录已清空，库存消耗已保留');}
   });
-  const storageCheck=async()=>{if($('#storage-state'))$('#storage-state').textContent=nativeApp?'使用本应用的私有持久存储；普通关闭、重启与同签名覆盖更新保留数据。':await navigator.storage?.persisted?.()?'当前已获得持久存储许可。仍建议定期备份。':'当前由浏览器管理存储空间。可申请持久存储，减少空间不足时被自动清理的风险。';};storageCheck();
+  const storageCheck=async()=>{if($('#storage-state'))$('#storage-state').textContent=nativeApp?'使用本应用私有持久存储；设备可用空间约 '+((window.BeanAndroid.availableStorageBytes?.()||0)/1024/1024/1024).toFixed(1)+' GB。普通关闭、重启与覆盖更新保留数据。':await navigator.storage?.persisted?.()?'当前已获得持久存储许可。仍建议定期备份。':'当前由浏览器管理存储空间。可申请持久存储，减少空间不足时被自动清理的风险。';};storageCheck();
   $('#persist-storage').onclick=()=>safe(async()=>{const ok=await navigator.storage?.persist?.();toast(ok?'持久存储已启用':'浏览器暂未授予许可，安装到桌面并持续使用后可重试');await storageCheck();});
 }
 async function navigate(next){

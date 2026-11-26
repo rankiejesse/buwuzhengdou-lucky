@@ -87,7 +87,7 @@ test('temporary stock adds selected quota only, expires, supports cancellation a
 test('v1 migration keeps history and maps total to weekly; v2 backup retains topups and rejects corrupt expiry',()=>{
  let current=claim(fresh(at));const old={...current,schema:1};delete old.topups;old.prizes=old.prizes.map(({weekly,...p})=>({...p,total:p.id==='p09'?7:null}));
  const restored=validateBackup({format:'buwuzhengdou-backup',version:1,state:old});assert.equal(restored.schema,2);assert.equal(restored.prizes[0].weekly,7);assert.equal(restored.prizes[0].total,undefined);assert.deepEqual(restored.records,current.records);
- let s=run(restored,{type:'topup',prizeId:'p09',period:'weekly',quantity:3},at);const b=backup(s);assert.equal(b.version,2);assert.deepEqual(validateBackup(b).topups,s.topups);
+ let s=run(restored,{type:'topup',prizeId:'p09',period:'weekly',quantity:3},at);const b=backup(s);assert.equal(b.version,3);assert.deepEqual(validateBackup(b).topups,s.topups);
  b.state.topups[0].expiresAt='2030-01-01T00:00:00.000Z';assert.throws(()=>validateBackup(b));
 });
 test('clear business resets histories, temporary stock and session while preserving prize configuration',()=>{

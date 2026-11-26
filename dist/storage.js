@@ -1,3 +1,4 @@
+import {compactPrizeHistory} from './capacity.js';
 import {fresh,command,validateBackup,migrateState,clearBusiness} from './engine.js';
 import {hashSecret,verifySecret,hashQuestions,validatePassword} from './auth.js';
 // Adapter boundary: a future server adapter can expose read/execute/replace.
@@ -15,30 +16,30 @@ export async function openStore(){
   if(connection)return connection;
   connection=await new Promise((resolve,reject)=>{
     // Close older clients: their lottery-only clear does not preserve workbench data.
-    const r=indexedDB.open(DB_NAME,5);
+    const r=indexedDB.open(DB_NAME,6);
     r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('states'))r.result.createObjectStore('states');};
     r.onerror=()=>reject(r.error);r.onblocked=()=>reject(Error('请关闭其他旧版本页面后重试'));
     r.onsuccess=()=>{r.result.onversionchange=()=>{r.result.close();connection=null;};resolve(r.result);};
   });return connection;
 }
-export async function transact(key, reducer, grant=null){
+export async function transact(key, reducer, grant=null,recordLimit=20000){
   const db=await openStore();
   return new Promise((resolve,reject)=>{
     let result, problem; let tx;
     try{tx=db.transaction('states','readwrite',{durability:'strict'});}catch{tx=db.transaction('states','readwrite');}
     const store=tx.objectStore('states');
-    const run=()=>{const r=store.get(key);r.onsuccess=()=>{try{const current=migrateState(r.result||fresh());const outcome=reducer(current);store.put(outcome.state,key);result=outcome.result??outcome.state;}catch(e){problem=e;tx.abort();}};};
+    const run=()=>{const r=store.get(key);r.onsuccess=()=>{try{const current=migrateState(r.result||fresh());const outcome=reducer(current);const saved=compactPrizeHistory(outcome.state,recordLimit);store.put(saved,key);result=outcome.result??saved;}catch(e){problem=e;tx.abort();}};};
     if(grant){const r=store.get(SECURITY);r.onsuccess=()=>{try{checkGrant(r.result||emptySecurity(),grant);run();}catch(e){problem=e;tx.abort();}};}else run();
     tx.oncomplete=()=>resolve(result);tx.onabort=()=>reject(problem||tx.error||Error('保存失败，请检查设备存储空间'));tx.onerror=()=>{};
-  });
+  }).catch(error=>{if(error?.name==='QuotaExceededError'){if(recordLimit>100)return transact(key,reducer,grant,recordLimit>5000?5000:100);throw Error('设备存储不足，本次操作未保存；原业务数据保留。请导出备份并释放设备空间后重试');}throw error;});
 }
 export const repository={
-  read:key=>transact(key,state=>({state,result:staffGrant?state:{...state,members:undefined,workbench:undefined}}),staffGrant?requireStaff():null),
+  read:key=>transact(key,state=>({state}),staffGrant?requireStaff():null).then(state=>staffGrant?state:{...state,members:undefined,workbench:undefined}),
   execute:(key,cmd)=>{const grant=['draw','claim','abandon','next'].includes(cmd.type)&&key==='live'?null:requireStaff();return transact(key,state=>command(state,{...cmd,test:key==='sandbox'}),grant);},
   replace:(key,input,authorization)=>transact(key,old=>{
     if(old.session?.status==='pending')throw Error('请先处理当前中奖结果');
-    const state=validateBackup(input);state.revision=old.revision+1;state.settingsRevision=old.settingsRevision+1;state.updatedAt=new Date().toISOString();
-    state.audit.push({id:crypto.randomUUID(),at:state.updatedAt,type:'import',detail:{sourceUpdatedAt:input.state.updatedAt}});return {state};
+    const state=validateBackup(input,false);state.revision=old.revision+1;state.settingsRevision=old.settingsRevision+1;state.updatedAt=new Date().toISOString();
+    state.audit=[...state.audit];state.audit.push({id:crypto.randomUUID(),at:state.updatedAt,type:'import',detail:{sourceUpdatedAt:input.state.updatedAt}});return {state};
   },requireStaff()),
   resetSandbox:()=>transact('sandbox',()=>({state:fresh()}),requireStaff())
 };

@@ -32,11 +32,15 @@ public class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final String START = "https://" + HOST + "/assets/www/index.html";
     private static final int OPEN_JSON = 41, SAVE_JSON = 42;
-    private static final int MAX_BACKUP = 20 * 1024 * 1024;
+    private static final int MAX_BACKUP = 256 * 1024 * 1024;
     private FrameLayout root;
     WebView webView;
     private ValueCallback<Uri[]> fileCallback;
-    private boolean exportBusy;
+    private volatile boolean exportBusy;
+    private boolean exportReady,compressedBackup;
+    private FileOutputStream backupOut;
+    private long backupSize;
+    private String backupName;
     private File pendingExport;
     private final ExecutorService files = Executors.newSingleThreadExecutor();
 
@@ -44,6 +48,7 @@ public class MainActivity extends Activity {
         super.onCreate(saved);
         pendingExport = new File(getCacheDir(), "pending-backup.json");
         exportBusy = saved != null && saved.getBoolean("exportBusy") && pendingExport.exists();
+        exportReady=exportBusy;
         root = new FrameLayout(this); root.setBackgroundColor(Color.rgb(247,245,239)); setContentView(root);
         if (Build.VERSION.SDK_INT >= 30) {
             getWindow().setDecorFitsSystemWindows(false);
@@ -100,7 +105,7 @@ public class MainActivity extends Activity {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
                 fileCallback = callback;
                 Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
-                intent.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"application/json","text/plain","application/octet-stream"});
+                intent.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"application/json","application/gzip","application/x-gzip","text/plain","application/octet-stream"});
                 try { startActivityForResult(intent, OPEN_JSON); }
                 catch (ActivityNotFoundException e) { fileCallback.onReceiveValue(null);fileCallback=null;toast("未找到系统文件选择器"); }
                 return true;
@@ -124,6 +129,25 @@ public class MainActivity extends Activity {
     private void toast(String text) { runOnUiThread(()->Toast.makeText(this,text,Toast.LENGTH_LONG).show()); }
 
     public final class BackupBridge {
+        @JavascriptInterface public long availableStorageBytes(){return new android.os.StatFs(getFilesDir().getAbsolutePath()).getAvailableBytes();}
+
+        @JavascriptInterface public synchronized boolean beginBackup(String name,boolean compressed) {
+            if(exportBusy)return false;
+            try{backupName=(name==null?"backup.json":name).replaceAll("[^\\p{L}\\p{N}._-]","_");backupName=backupName.substring(0,Math.min(backupName.length(),100));compressedBackup=compressed;backupSize=0;exportReady=false;backupOut=new FileOutputStream(pendingExport);exportBusy=true;return true;}catch(IOException e){return false;}
+        }
+        @JavascriptInterface public synchronized boolean appendBackupChunk(String base64) {
+            if(backupOut==null||base64==null||base64.length()>100000)return false;
+            try{byte[] bytes=android.util.Base64.decode(base64,android.util.Base64.DEFAULT);backupSize+=bytes.length;if(backupSize>MAX_BACKUP)return false;backupOut.write(bytes);return true;}catch(Exception e){return false;}
+        }
+        @JavascriptInterface public synchronized boolean finishBackup() {
+            if(backupOut==null)return false;
+            try{backupOut.getFD().sync();backupOut.close();backupOut=null;
+                try(InputStream input=compressedBackup?new java.util.zip.GZIPInputStream(new FileInputStream(pendingExport)):new FileInputStream(pendingExport)){byte[] bytes=new byte[2048];int count=input.read(bytes);if(count<1||!new String(bytes,0,count,StandardCharsets.UTF_8).contains("buwuzhengdou-backup"))throw new IOException("invalid backup");}
+                exportReady=true;runOnUiThread(()->{if(isFinishing()||isDestroyed())return;Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(compressedBackup?"application/gzip":"application/json");intent.putExtra(Intent.EXTRA_TITLE,backupName);try{startActivityForResult(intent,SAVE_JSON);}catch(ActivityNotFoundException e){exportBusy=false;toast("未找到系统文件保存窗口");}});return true;
+            }catch(Exception e){cancelBackup();return false;}
+        }
+        @JavascriptInterface public synchronized void cancelBackup(){try{if(backupOut!=null)backupOut.close();}catch(IOException ignored){}backupOut=null;pendingExport.delete();exportBusy=false;exportReady=false;}
+
         @JavascriptInterface public void copyText(String text) {
             if(text==null||text.length()>200000)return;
             runOnUiThread(()->{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("不务正豆工作台",text));});
@@ -135,8 +159,8 @@ public class MainActivity extends Activity {
             runOnUiThread(()->{android.content.res.Configuration config=new android.content.res.Configuration(getResources().getConfiguration());java.util.Locale selected="system".equals(choice)?android.content.res.Resources.getSystem().getConfiguration().getLocales().get(0):java.util.Locale.SIMPLIFIED_CHINESE;java.util.Locale.setDefault(selected);config.setLocale(selected);getResources().updateConfiguration(config,getResources().getDisplayMetrics());});
         }
         @JavascriptInterface public void saveBackup(String json, String name) {
-            if(json==null || json.length()>MAX_BACKUP){toast("备份超过20MB，未能保存");return;}
-            try { JSONObject object=new JSONObject(json);int version=object.optInt("version");if(!"buwuzhengdou-backup".equals(object.optString("format"))||(version!=1&&version!=2))throw new IllegalArgumentException(); }
+            if(json==null || json.length()>MAX_BACKUP){toast("备份超过256MB，未能保存");return;}
+            try { JSONObject object=new JSONObject(json);int version=object.optInt("version");if(!"buwuzhengdou-backup".equals(object.optString("format"))||(version!=1&&version!=2&&version!=3))throw new IllegalArgumentException(); }
             catch(Exception e){toast("备份内容无效，未能保存");return;}
             String cleanName=name==null?"不务正豆-完整备份.json":name.replaceAll("[^\\p{L}\\p{N}._-]","_");
             final String title=cleanName.substring(0,Math.min(cleanName.length(),100));
@@ -174,7 +198,7 @@ public class MainActivity extends Activity {
             });
         }
     }
-    @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out);out.putBoolean("exportBusy",exportBusy); }
+    @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out);out.putBoolean("exportBusy",exportBusy&&exportReady); }
     @Override public void onBackPressed() {
         confirmExit();
     }
@@ -183,6 +207,7 @@ public class MainActivity extends Activity {
             .setNegativeButton("继续使用",null).setPositiveButton("退出",(d,w)->finish()).show();
     }
     @Override protected void onDestroy() {
+        try{if(backupOut!=null)backupOut.close();}catch(IOException ignored){}
         if(fileCallback!=null){fileCallback.onReceiveValue(null);fileCallback=null;}
         if(webView!=null){root.removeView(webView);webView.destroy();webView=null;}
         files.shutdown();super.onDestroy();

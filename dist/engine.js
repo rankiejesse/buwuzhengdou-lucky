@@ -1,3 +1,4 @@
+import {compactPrizeHistory} from './capacity.js';
 import {memberCommand,validateMembers} from './members.js';
 import {workbenchCommand,validateWorkbench} from './workbench.js';
 // Pure domain layer. The repository applies each command inside one IndexedDB transaction.
@@ -8,8 +9,9 @@ export const PRIZES = [
   ['slot','时段卡一张','体验卡',1.5], ['day','全天卡一张','体验卡',0.5]
 ].map(([id,name,category,probability])=>({id,name,category,probability,weekly:null,monthly:null,daily:null}));
 export const ZONE = 'Asia/Shanghai';
+const DAY_FORMATTER=new Intl.DateTimeFormat('en-CA',{timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit'});
 export function dateKey(time = Date.now()) {
-  const p = new Intl.DateTimeFormat('en-CA',{timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(time));
+  const p = DAY_FORMATTER.formatToParts(new Date(time));
   return ['year','month','day'].map(k=>p.find(x=>x.type===k).value).join('-');
 }
 export function fresh(now = Date.now()) {
@@ -40,6 +42,7 @@ export function migrateState(input,now=Date.now()) {
 }
 export function counts(state,id,now=Date.now()) {
   const d=dateKey(now), month=d.slice(0,7),week=weekKey(now); let total=0, weekly=0, monthly=0, daily=0;
+  for(const row of state.ledgerArchive||[])if(row.prizeId===id){total+=row.count;if(row.date>=week&&row.date<=d)weekly+=row.count;if(row.date.startsWith(month))monthly+=row.count;if(row.date===d)daily+=row.count;}
   for (const row of state.ledger) if(row.prizeId===id) {total++;if(row.date>=week&&row.date<=d)weekly++;if(row.date.startsWith(month))monthly++;if(row.date===d)daily++;}
   return {total,weekly,monthly,daily};
 }
@@ -118,18 +121,20 @@ export function command(state, cmd, now=Date.now(), random=()=>crypto.getRandomV
     case 'clearRecords':pending(s);audit('clearRecords',{removed:s.records.length});s.records=[];break;
     default:if(cmd.type.startsWith('member:')){s.members=memberCommand(s.members,{...cmd,type:cmd.type.slice(7)},now);break;}if(cmd.type.startsWith('workbench:')){if(cmd.expectedRevision!==undefined&&cmd.expectedRevision!==s.revision)throw Error('数据已在其他页面变化，请关闭窗口后重新编辑');s.workbench=workbenchCommand(s.workbench,{...cmd,type:cmd.type.slice(10)},now,uuid);break;}throw Error('未知操作');
   }
-  s.revision++;s.updatedAt=at;return {state:s,result};
+  s.revision++;s.updatedAt=at;return {state:compactPrizeHistory(s,undefined,now),result};
 }
 function validTime(t){return typeof t==='string' && /^\d{4}-\d{2}-\d{2}T/.test(t)&&Number.isFinite(Date.parse(t));}
-export function validateBackup(input) {
-  if(!input||input.format!=='buwuzhengdou-backup'||![1,2].includes(input.version))throw Error('不是本应用支持的 v1/v2 备份');
-  if(!input.state||input.state.schema!==input.version)throw Error('备份版本与数据版本不一致');
-  const s=input.state.schema===1?migrateState(input.state):structuredClone(input.state);validatePrizes(s.prizes);
+export function validateBackup(input,clone=true) {
+  if(!input||input.format!=='buwuzhengdou-backup'||![1,2,3].includes(input.version))throw Error('不是本应用支持的 v1/v2/v3 备份');
+  if(!input.state||input.state.schema!==(input.version===3?2:input.version))throw Error('备份版本与数据版本不一致');
+  const s=input.state.schema===1?migrateState(input.state):(clone?structuredClone(input.state):input.state);validatePrizes(s.prizes);
   if(s.workbench!==undefined)validateWorkbench(s.workbench);
   if(s.members!==undefined)validateMembers(s.members);
   for(const k of ['records','ledger','audit'])if(!Array.isArray(s[k]))throw Error('备份缺少完整记录');
   for(const k of ['revision','settingsRevision'])if(!Number.isSafeInteger(s[k])||s[k]<0)throw Error('版本号无效');
   if(!validTime(s.updatedAt))throw Error('更新时间无效');
+  if(s.ledgerArchive!==undefined){if(!Array.isArray(s.ledgerArchive))throw Error('库存汇总无效');const keys=new Set();for(const r of s.ledgerArchive){const key=r.date+'|'+r.prizeId;if(!/^\d{4}-\d{2}-\d{2}$/.test(r.date)||dateKey(r.date+'T00:00:00+08:00')!==r.date||!PRIZES.some(p=>p.id===r.prizeId)||!Number.isSafeInteger(r.count)||r.count<=0||keys.has(key))throw Error('库存汇总无效或重复');keys.add(key);}}
+  if(s.retention!==undefined&&(!s.retention||!Number.isSafeInteger(s.retention.droppedRecords)||s.retention.droppedRecords<0||!Number.isSafeInteger(s.retention.recordsLimit)||s.retention.recordsLimit<1||!validTime(s.retention.lastPrunedAt)))throw Error('查询保留信息无效');
   const ids=new Set(),ledgerById=new Map();
   for(const row of s.ledger){
     if(!row||typeof row.id!=='string'||!row.id||row.id.length>100||ids.has(row.id)||!PRIZES.some(p=>p.id===row.prizeId)||row.delta!==-1||!validTime(row.at)||row.date!==dateKey(row.at))throw Error('库存变化记录无效或重复');ids.add(row.id);ledgerById.set(row.id,row);
@@ -148,9 +153,9 @@ export function validateBackup(input) {
   }
   for(const p of s.prizes){const limits=effectiveLimits(s,p);for(const k of ['weekly','monthly'])if(limits[k]!==null&&!Number.isSafeInteger(limits[k]))throw Error('临时补货额度超出支持范围');}
   // Never restore a redeemable ticket. Restoring a backup is a replacement, not a sync merge.
-  return {...structuredClone(s),session:null};
+  return {...s,session:null};
 }
-export function backup(state){return {format:'buwuzhengdou-backup',version:2,exportedAt:new Date().toISOString(),timezone:ZONE,state:structuredClone(state)};}
+export function backup(state,clone=true){return {format:'buwuzhengdou-backup',version:3,exportedAt:new Date().toISOString(),timezone:ZONE,state:clone?structuredClone(state):state};}
 export function clearBusiness(state,now=Date.now()) {
   const old=migrateState(state,now),s=fresh(now);s.prizes=structuredClone(old.prizes);s.revision=old.revision+1;s.settingsRevision=old.settingsRevision+1;
   if(old.workbench)s.workbench=structuredClone(old.workbench);

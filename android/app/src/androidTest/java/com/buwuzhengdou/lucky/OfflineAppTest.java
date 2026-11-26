@@ -36,7 +36,7 @@ public class OfflineAppTest {
         return new JSONTokener(value.get()==null?"null":value.get()).nextValue();
     }
     void waitJS(String script) throws Exception {
-        long deadline=SystemClock.elapsedRealtime()+20000;
+        long deadline=SystemClock.elapsedRealtime()+60000;
         while(SystemClock.elapsedRealtime()<deadline){if(Boolean.TRUE.equals(eval(script)))return;SystemClock.sleep(100);}
         device.executeShellCommand("screencap -p /sdcard/Download/bean-test-failure.png");
         fail("Timed out waiting for "+script+"; layout="+eval("({height:innerHeight,visualHeight:visualViewport.height,active:document.activeElement?.id,dialog:document.querySelector('dialog').getBoundingClientRect().toJSON()})"));
@@ -97,6 +97,23 @@ public class OfflineAppTest {
         tap("#member-refund");waitJS("!!document.querySelector('#refund-confirm')");tap("#refund-confirm");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");assertTrue(String.valueOf(eval("document.querySelector('.refundable-metric').textContent")).contains("0.00"));
         tap("#member-delete");tap("#ok-modal");waitJS("!!document.querySelector('#member-search')");tap("#member-archive");waitJS("!!document.querySelector('[data-member]')");tap("[data-member]");assertEquals(Boolean.TRUE,eval("document.querySelector('#member-recharge').closest('.action-row').hidden"));assertEquals("refund",state().getJSONArray("members").getJSONObject(0).getJSONArray("transactions").getJSONObject(2).getString("type"));
         scenario.recreate();scenario.onActivity(a->activity=a);waitJS("window.__beanStarted===true");assertTrue(state().getJSONArray("members").getJSONObject(0).has("deletedAt"));
+    }
+
+
+    @Test public void compressedBackupThroughAndroidPickerAndRestore() throws Exception {
+        tap("#role-switch");waitJS("!!document.querySelector('#owner-password')");eval("document.querySelector('#owner-password').value='2468'");tap("#owner-submit");waitJS("!document.querySelector('[data-page=data]').hidden");
+        tap("[data-page=members]");tap("#member-create");waitJS("document.querySelector('dialog').open");eval("document.querySelector('#member-name').value='压缩备份会员';document.querySelector('#member-phone').value='13800001234';document.querySelector('#member-amount').value='100';document.querySelector('#member-amount').dispatchEvent(new Event('input',{bubbles:true}))");tap("#owner-submit");waitJS("!document.querySelector('dialog').open");
+        assertEquals(Boolean.TRUE,eval("(()=>{const e=document.querySelectorAll('.member-balance-hero .money-metric');return e.length===2 && Math.abs(e[0].getBoundingClientRect().top-e[1].getBoundingClientRect().top)<1;})()"));
+        dataPage();tap("#export-data");String filename="bean-compressed-"+System.currentTimeMillis()+".json.gz";
+        UiObject2 name=device.wait(Until.findObject(By.clazz("android.widget.EditText")),15000);assertNotNull(name);name.setText(filename);UiObject2 save=device.wait(Until.findObject(By.text(Pattern.compile("(?i)save|保存"))),10000);assertNotNull(save);save.click();assertTrue(device.wait(Until.hasObject(By.pkg(activity.getPackageName())),15000));SystemClock.sleep(1000);
+        tap("#import-data");UiObject2 file=device.wait(Until.findObject(By.text(filename)),10000);assertNotNull(file);file.click();waitJS("!!document.querySelector('#ok-modal') && document.querySelector('dialog').open");tap("#ok-modal");waitJS("document.querySelector('#toast').textContent.includes('导入成功')");assertEquals(1,state().getJSONArray("members").length());
+        // Large year fixture is pushed to the emulator Downloads directory before this test.
+        tap("#import-data");UiObject2 yearly=device.wait(Until.findObject(By.text("bean-one-year.json.gz")),15000);assertNotNull("Year fixture in Downloads",yearly);yearly.click();waitJS("document.querySelector('dialog').open && !!document.querySelector('#ok-modal')");tap("#ok-modal");waitJS("document.querySelector('#toast').textContent.includes('导入成功')");
+        tap("#export-data");UiObject2 yearName=device.wait(Until.findObject(By.clazz("android.widget.EditText")),15000);assertNotNull(yearName);yearName.setText("bean-year-export.json.gz");UiObject2 yearSave=device.wait(Until.findObject(By.text(Pattern.compile("(?i)save|保存"))),10000);assertNotNull(yearSave);yearSave.click();assertTrue(device.wait(Until.hasObject(By.pkg(activity.getPackageName())),15000));SystemClock.sleep(1200);
+        assertTrue(device.executeShellCommand("wc -c /sdcard/Download/bean-year-export.json.gz").contains("bean-year-export"));
+        tap("#import-data");UiObject2 yearlyExport=device.wait(Until.findObject(By.text("bean-year-export.json.gz")),15000);assertNotNull(yearlyExport);yearlyExport.click();waitJS("document.querySelector('dialog').open && !!document.querySelector('#ok-modal')");tap("#ok-modal");waitJS("document.querySelector('#toast').textContent.includes('导入成功')");
+        JSONObject verified=(JSONObject)async("const db=await (await import('./storage.js')).openStore();const s=await new Promise(resolve=>{const r=db.transaction('states').objectStore('states').get('live');r.onsuccess=()=>resolve(r.result);});return {members:s.members.length,transactions:s.members.reduce((n,m)=>n+m.transactions.length,0),incomes:s.workbench.incomes.length,books:s.workbench.books.length,records:s.records.length,archived:s.ledgerArchive.reduce((n,r)=>n+r.count,0)};");
+        assertEquals(10000,verified.getInt("members"));assertEquals(366000,verified.getInt("transactions"));assertEquals(365,verified.getInt("incomes"));assertEquals(50,verified.getInt("books"));assertEquals(20000,verified.getInt("records"));assertEquals(345000,verified.getInt("archived"));
     }
 
     @Test public void coldOfflineStartAndClaimPersistAfterActivityRecreation() throws Exception {
