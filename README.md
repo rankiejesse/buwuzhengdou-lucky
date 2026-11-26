@@ -4,7 +4,7 @@
 
 ## 安装使用
 
-- [独立安卓APK v1.6.0](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.6.0/buwuzhengdou-workbench-1.6.0.apk)
+- [独立安卓APK v1.6.1](https://github.com/rankiejesse/buwuzhengdou-lucky/releases/download/android-v1.6.1/buwuzhengdou-workbench-1.6.1.apk)
 - [安卓安装、升级与迁移说明](安卓应用使用说明.md)
 - [网页版](https://rankiejesse.github.io/buwuzhengdou-lucky/)
 - [浏览器兼容入口](https://rankiejesse.github.io/buwuzhengdou-lucky/repair.html?mode=browser)
@@ -12,6 +12,10 @@
 APK桌面名称为“不务正豆工作台”，资源内置，首次启动即可离线，不依赖Chrome安装壳。由1.1.0升级时直接覆盖安装，保持同一应用和签名，不要先卸载。网页和APK分别保存自己的数据，跨环境请用JSON迁移。
 
 PWA首次联网加载，等待“离线已就绪”后可从安卓Chrome安装。若Chrome安装版在系统图标处停留，可改用独立APK或浏览器兼容入口；原启动壳故障尚无该设备的确切诊断。
+
+## App v1.6.1 会员列表
+
+会员页默认按姓名显示全部正常会员；搜索与已删除会员入口上移，列表说明放在底部。大量会员每批显示100位，可继续加载；实时尾号搜索保持优先匹配。
 
 ## App v1.6.0 会员余额布局与一年容量
 

@@ -1,7 +1,7 @@
 // Replay integer-cent ledger: actual paid funds are always consumed before gifts.
 export function memberFunds(m){let paid=0,gift=0;for(const t of m.transactions){if(t.type==='recharge'){paid+=t.amount;gift+=t.gift;}else if(t.type==='spend'){const paidUsed=Math.min(paid,t.amount);paid-=paidUsed;gift-=t.amount-paidUsed;}else if(t.type==='refund'){paid-=t.amount;gift-=t.gift;}}return {paid,gift,total:paid+gift,refundable:paid};}
 export const memberBalance=m=>memberFunds(m).total;
-export function searchMembers(members,query){const q=query.trim().toLowerCase();if(!q)return [];const digits=/^\d+$/.test(q);return members.filter(m=>!m.deletedAt&&(digits?m.phone.includes(q):m.name.toLowerCase().includes(q))).sort((a,b)=>(digits?Number(b.phone.endsWith(q))-Number(a.phone.endsWith(q)):0)||a.name.localeCompare(b.name,'zh-CN')||a.phone.localeCompare(b.phone));}
+export function searchMembers(members,query){const q=query.trim().toLowerCase();const digits=/^\d+$/.test(q);return members.filter(m=>!m.deletedAt&&(!q|| (digits?m.phone.includes(q):m.name.toLowerCase().includes(q)))).sort((a,b)=>(digits?Number(b.phone.endsWith(q))-Number(a.phone.endsWith(q)):0)||a.name.localeCompare(b.name,'zh-CN')||a.phone.localeCompare(b.phone));}
 const money=n=>Number.isSafeInteger(n)&&n>=0&&n<=99999999999;
 export function validateMembers(rows){
  if(!Array.isArray(rows))throw Error('会员数据无效');const ids=new Set(),phones=new Set(),txids=new Set();
